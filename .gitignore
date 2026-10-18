@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+.idea/
+TestResults/
+coverage/
+node_modules/
+dist/
+.env
+*.log
+graphify-out/
