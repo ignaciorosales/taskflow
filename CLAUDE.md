@@ -1,4 +1,4 @@
-.NET 10 Web API (controllers) + React/TS.
+.NET 10 Web API (controllers) + React/TS. Requirements: @docs/USER_STORY.md
 Clean Architecture: Domain has no dependencies, Application owns the ports, Infrastructure implements them.
 MongoDB with the official driver. No EF, Dapper, MediatR or AutoMapper.
 Expected failures return a Result, not exceptions. Errors go out as ProblemDetails. Time goes through TimeProvider.
