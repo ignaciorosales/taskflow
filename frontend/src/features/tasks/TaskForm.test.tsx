@@ -116,6 +116,17 @@ describe('TaskForm', () => {
     )
   })
 
+  it('sends back the exact due date when the user edits other fields of an overdue task', async () => {
+    const dueDate = '2020-01-15T09:30:41.123Z'
+    const { onSubmit, user } = renderForm({ initial: aTask({ dueDate, isOverdue: true }) })
+
+    await user.clear(screen.getByLabelText('Title'))
+    await user.type(screen.getByLabelText('Title'), 'Renew passport')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: 'Renew passport', dueDate }))
+  })
+
   it('offers Cancel only when there is somewhere to go back to', async () => {
     const onCancel = vi.fn()
     const { user } = renderForm({ onCancel })
