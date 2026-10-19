@@ -39,6 +39,14 @@ The demo account has tasks in every status, including an overdue one, with dates
 
 Compose uses a built-in local signing key. Set `JWT_KEY` (at least 32 bytes) for anything that isn't your own machine.
 
+### Look at the database
+
+```sh
+docker compose --profile tools up -d
+```
+
+Opens Mongo Express at http://localhost:8081 (user `admin`, password `taskflow-demo`, or set `MONGO_EXPRESS_PASSWORD`). It's off by default and only reachable from your own machine, because it can edit data. For a shell instead: `docker compose exec mongo mongosh taskflow`.
+
 ### Without Docker for the apps
 
 You need the .NET 10 SDK, Node 22 and a Mongo:

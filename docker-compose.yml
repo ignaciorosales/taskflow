@@ -46,5 +46,21 @@ services:
       - identity-api
       - tasks-api
 
+  # Optional database browser for demos: docker compose --profile tools up -d → http://localhost:8081
+  # Off by default, bound to this machine only, and behind a login since it can edit data.
+  mongo-express:
+    image: mongo-express:1.0.2
+    profiles: ["tools"]
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-taskflow-demo}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
 volumes:
   mongo-data:
