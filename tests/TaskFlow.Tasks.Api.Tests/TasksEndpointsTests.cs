@@ -55,6 +55,27 @@ public class TasksEndpointsTests(TasksApiFactory factory) : IClassFixture<TasksA
     }
 
     [Fact]
+    public async Task Due_date_without_an_offset_is_a_400_on_create()
+    {
+        var response = await _client.CreateTaskAsync(new { title = "Buy milk", dueDate = "2030-01-15T10:00:00" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("dueDate", (await response.ReadAsync<ValidationProblemDetails>()).Errors.Keys);
+    }
+
+    [Fact]
+    public async Task Due_date_without_an_offset_is_a_400_on_update()
+    {
+        var created = await _client.CreatedTaskAsync();
+
+        var response = await _client.PutAsJsonAsync(
+            $"/api/tasks/{created.Id}", new { title = "Buy milk", priority = "Medium", dueDate = "2030-01-15T10:00:00" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("dueDate", (await response.ReadAsync<ValidationProblemDetails>()).Errors.Keys);
+    }
+
+    [Fact]
     public async Task Unknown_priority_name_is_a_400()
     {
         var response = await _client.CreateTaskAsync(new { title = "Buy milk", priority = "Urgent" });
