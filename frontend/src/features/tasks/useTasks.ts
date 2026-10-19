@@ -39,11 +39,8 @@ function moveCard(board: Board, id: string, to: TaskStatus): Board {
   const from = STATUSES.find((s) => board[s].items.some((t) => t.id === id))
   if (!from || from === to) return board
   const task = board[from].items.find((t) => t.id === id)!
-  return {
-    ...board,
-    [from]: { items: board[from].items.filter((t) => t.id !== id), totalCount: board[from].totalCount - 1 },
-    [to]: { items: [{ ...task, status: to }, ...board[to].items], totalCount: board[to].totalCount + 1 },
-  }
+  const rest = withoutCard(board, id)
+  return { ...rest, [to]: { items: [{ ...task, status: to }, ...rest[to].items], totalCount: rest[to].totalCount + 1 } }
 }
 
 /** Enough whole pages to show `shown` cards again, within what the API serves in one request. */
