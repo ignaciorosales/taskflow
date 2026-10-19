@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+using TaskFlow.Application.Auth;
 using TaskFlow.Domain.Tasks;
 using TaskFlow.Domain.Users;
 
@@ -21,7 +22,7 @@ public static class MongoSetup
         ConventionRegistry.Register(
             "TaskFlow",
             new ConventionPack { new CamelCaseElementNameConvention(), new IgnoreExtraElementsConvention(true) },
-            type => type.Namespace?.StartsWith("TaskFlow.Domain", StringComparison.Ordinal) == true);
+            type => type.Namespace?.StartsWith("TaskFlow.", StringComparison.Ordinal) == true);
 
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         // BSON dates (UTC, millisecond precision) so dates compare and sort as instants inside Mongo.
@@ -38,6 +39,11 @@ public static class MongoSetup
             map.AutoMap();
             map.MapIdMember(u => u.Id);
         });
+        BsonClassMap.RegisterClassMap<LoginAttempt>(map =>
+        {
+            map.AutoMap();
+            map.MapIdMember(a => a.Email);
+        });
     }
 
     /// <summary>Registers the serialization mappings and creates the indexes. Safe to run more than once.</summary>
@@ -50,6 +56,15 @@ public static class MongoSetup
         await database.GetCollection<TaskItem>(TasksCollection).Indexes.CreateOneAsync(
             new CreateIndexModel<TaskItem>(Builders<TaskItem>.IndexKeys.Ascending(t => t.OwnerId).Ascending(t => t.DeletedAt)),
             cancellationToken: cancellationToken);
+
+        var refreshKeys = Builders<RefreshToken>.IndexKeys;
+        await database.GetCollection<RefreshToken>(RefreshTokensCollection).Indexes.CreateManyAsync(
+        [
+            new CreateIndexModel<RefreshToken>(refreshKeys.Ascending(t => t.TokenHash), new CreateIndexOptions { Unique = true }),
+            new CreateIndexModel<RefreshToken>(refreshKeys.Ascending(t => t.UserId)),
+            // Mongo removes each token on its own once it expires.
+            new CreateIndexModel<RefreshToken>(refreshKeys.Ascending(t => t.ExpiresAt), new CreateIndexOptions { ExpireAfter = TimeSpan.Zero }),
+        ], cancellationToken);
     }
 
     private sealed class EmailSerializer : SerializerBase<Email>
