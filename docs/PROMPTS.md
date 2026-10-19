@@ -148,6 +148,14 @@ Update the acceptance criteria with my answers. Don't add any rule I didn't give
 Propose the solution structure following CLAUDE.md. Show me the project references
 and list the assumptions you're making so I can validate them.
 ```
+<details>
+<summary>The AI's questions</summary>
+
+1. Docker isn't on the shell's PATH; Testcontainers and compose need it. Is it installed? → Yes (Docker Desktop, daemon running).
+2. Refresh-token reuse detection (a reused, already-rotated token revokes all of that user's tokens)? → Yes.
+
+Result: [docs/PLAN.md](PLAN.md).
+</details>
 *Notes:*
 
 ## 3. Scaffold
