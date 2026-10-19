@@ -75,6 +75,16 @@ public class TaskServicePrivacyTests : TaskServiceTestBase
     }
 
     [Fact]
+    public async Task Asks_the_repository_only_for_the_callers_task()
+    {
+        var task = StoredTask(UserId);
+
+        await Service.GetAsync(UserId, task.Id, default);
+
+        await Repository.Received(1).GetByIdAsync(UserId, task.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Owner_can_reach_their_own_task()
     {
         var task = StoredTask(UserId);

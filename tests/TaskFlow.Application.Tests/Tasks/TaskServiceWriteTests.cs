@@ -1,4 +1,5 @@
 using NSubstitute;
+using TaskFlow.Domain.Common;
 using TaskFlow.Domain.Tasks;
 
 namespace TaskFlow.Application.Tests.Tasks;
@@ -75,5 +76,24 @@ public class TaskServiceWriteTests : TaskServiceTestBase
         Assert.True(result.IsSuccess);
         Assert.Equal(Now.AddMinutes(5), task.DeletedAt);
         await Repository.Received(1).UpdateAsync(task, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("update")]
+    [InlineData("change status")]
+    [InlineData("delete")]
+    public async Task Task_deleted_while_it_was_being_saved_is_not_found(string operation)
+    {
+        var task = StoredTask(UserId);
+        Repository.UpdateAsync(task, Arg.Any<CancellationToken>()).Returns(false);
+
+        Result result = operation switch
+        {
+            "update" => await Service.UpdateAsync(UserId, task.Id, new("Buy bread", null, TaskPriority.Low, null), default),
+            "change status" => await Service.ChangeStatusAsync(UserId, task.Id, TaskItemStatus.Done, default),
+            _ => await Service.DeleteAsync(UserId, task.Id, default),
+        };
+
+        Assert.Equal([TaskErrors.NotFound], result.Errors);
     }
 }

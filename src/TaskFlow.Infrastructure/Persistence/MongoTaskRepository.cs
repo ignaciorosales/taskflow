@@ -11,7 +11,7 @@ public sealed class MongoTaskRepository : ITaskRepository
 
     public MongoTaskRepository(IMongoDatabase database) => _tasks = database.GetCollection<TaskItem>(MongoSetup.TasksCollection);
 
-    public async Task<TaskItem?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<TaskItem?> GetByIdAsync(Guid ownerId, Guid id, CancellationToken cancellationToken)
         => await _tasks.Find(t => t.Id == id).FirstOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<TaskItem>> ListAsync(Guid ownerId, TaskQuery query, DateTimeOffset now, CancellationToken cancellationToken)
@@ -41,8 +41,11 @@ public sealed class MongoTaskRepository : ITaskRepository
     public Task AddAsync(TaskItem task, CancellationToken cancellationToken)
         => _tasks.InsertOneAsync(task, cancellationToken: cancellationToken);
 
-    public Task UpdateAsync(TaskItem task, CancellationToken cancellationToken)
-        => _tasks.ReplaceOneAsync(t => t.Id == task.Id, task, cancellationToken: cancellationToken);
+    public async Task<bool> UpdateAsync(TaskItem task, CancellationToken cancellationToken)
+    {
+        await _tasks.ReplaceOneAsync(t => t.Id == task.Id, task, cancellationToken: cancellationToken);
+        return true;
+    }
 
     private static FilterDefinition<TaskItem> Filter(Guid ownerId, TaskQuery query, DateTimeOffset now)
     {

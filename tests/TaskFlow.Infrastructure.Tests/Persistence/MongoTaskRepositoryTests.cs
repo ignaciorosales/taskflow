@@ -32,7 +32,7 @@ public class MongoTaskRepositoryTests(MongoFixture mongo) : IClassFixture<MongoF
         task.ChangeStatus(TaskItemStatus.Done, T0.AddHours(2));
 
         await repository.AddAsync(task, default);
-        var loaded = await repository.GetByIdAsync(task.Id, default);
+        var loaded = await repository.GetByIdAsync(_owner, task.Id, default);
 
         Assert.NotNull(loaded);
         Assert.Equal(task.Id, loaded.Id);
@@ -50,20 +50,22 @@ public class MongoTaskRepositoryTests(MongoFixture mongo) : IClassFixture<MongoF
     [Fact]
     public async Task Unknown_id_finds_nothing()
     {
-        Assert.Null(await (await RepositoryAsync()).GetByIdAsync(Guid.NewGuid(), default));
+        Assert.Null(await (await RepositoryAsync()).GetByIdAsync(_owner, Guid.NewGuid(), default));
     }
 
     [Fact]
-    public async Task Get_by_id_leaves_ownership_and_deletion_to_the_service()
+    public async Task Get_by_id_finds_only_the_owners_task_that_isnt_deleted()
     {
         var repository = await RepositoryAsync();
+        var mine = NewTask(_owner, "Mine");
         var someoneElses = NewTask(Guid.NewGuid(), "Theirs");
         var deleted = NewTask(_owner, "Deleted");
         deleted.Delete(T0);
-        await AddAllAsync(repository, someoneElses, deleted);
+        await AddAllAsync(repository, mine, someoneElses, deleted);
 
-        Assert.NotNull(await repository.GetByIdAsync(someoneElses.Id, default));
-        Assert.Equal(T0, (await repository.GetByIdAsync(deleted.Id, default))!.DeletedAt);
+        Assert.NotNull(await repository.GetByIdAsync(_owner, mine.Id, default));
+        Assert.Null(await repository.GetByIdAsync(_owner, someoneElses.Id, default));
+        Assert.Null(await repository.GetByIdAsync(_owner, deleted.Id, default));
     }
 
     [Fact]
@@ -75,14 +77,33 @@ public class MongoTaskRepositoryTests(MongoFixture mongo) : IClassFixture<MongoF
 
         task.Edit("Buy bread", "Wholegrain", TaskPriority.Low, T0.AddDays(3), T0);
         task.ChangeStatus(TaskItemStatus.InProgress, T0);
-        await repository.UpdateAsync(task, default);
-        var loaded = await repository.GetByIdAsync(task.Id, default);
+        var saved = await repository.UpdateAsync(task, default);
+        var loaded = await repository.GetByIdAsync(_owner, task.Id, default);
 
+        Assert.True(saved);
         Assert.Equal("Buy bread", loaded!.Title);
         Assert.Equal("Wholegrain", loaded.Description);
         Assert.Equal(TaskPriority.Low, loaded.Priority);
         Assert.Equal(T0.AddDays(3), loaded.DueDate);
         Assert.Equal(TaskItemStatus.InProgress, loaded.Status);
+    }
+
+    [Fact]
+    public async Task Update_doesnt_bring_back_a_task_deleted_since_it_was_read()
+    {
+        var repository = await RepositoryAsync();
+        var task = NewTask(_owner, "Buy milk");
+        await repository.AddAsync(task, default);
+        var inOneTab = (await repository.GetByIdAsync(_owner, task.Id, default))!;
+        var inAnother = (await repository.GetByIdAsync(_owner, task.Id, default))!;
+
+        inOneTab.Delete(T0);
+        await repository.UpdateAsync(inOneTab, default);
+        inAnother.Edit("Buy bread", null, TaskPriority.Low, null, T0);
+        var saved = await repository.UpdateAsync(inAnother, default);
+
+        Assert.False(saved);
+        Assert.Null(await repository.GetByIdAsync(_owner, task.Id, default));
     }
 
     [Fact]

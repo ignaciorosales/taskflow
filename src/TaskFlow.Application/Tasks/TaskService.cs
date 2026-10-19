@@ -96,7 +96,7 @@ public sealed class TaskService
     // Someone else's task and a deleted one come back exactly like a missing one.
     private async Task<TaskItem?> FindOwnedAsync(Guid userId, Guid taskId, CancellationToken cancellationToken)
     {
-        var task = await _repository.GetByIdAsync(taskId, cancellationToken);
+        var task = await _repository.GetByIdAsync(userId, taskId, cancellationToken);
         return task is not null && task.OwnerId == userId && task.DeletedAt is null ? task : null;
     }
 

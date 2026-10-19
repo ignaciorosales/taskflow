@@ -16,12 +16,17 @@ public abstract class TaskServiceTestBase
     protected readonly FakeTimeProvider Time = new(Now);
     protected readonly TaskService Service;
 
-    protected TaskServiceTestBase() => Service = new TaskService(Repository, Time);
+    protected TaskServiceTestBase()
+    {
+        Service = new TaskService(Repository, Time);
+        Repository.UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>()).Returns(true);
+    }
 
     protected TaskItem StoredTask(Guid ownerId, DateTimeOffset? dueDate = null)
     {
         var task = TaskItem.Create(ownerId, "Buy milk", "Semi-skimmed", TaskPriority.Low, dueDate, Now).Value;
-        Repository.GetByIdAsync(task.Id, Arg.Any<CancellationToken>()).Returns(task);
+        // Handed to whoever asks, as if the repository forgot to filter: the service's own check is what's under test.
+        Repository.GetByIdAsync(Arg.Any<Guid>(), task.Id, Arg.Any<CancellationToken>()).Returns(task);
         return task;
     }
 }
