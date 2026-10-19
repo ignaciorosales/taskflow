@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/ignaciorosales/taskflow/actions/workflows/ci.yml/badge.svg)](https://github.com/ignaciorosales/taskflow/actions/workflows/ci.yml)
 
+> **Reviewers: start with [PRESENTATION.md](PRESENTATION.md)**, my thought process and how I used GenAI. Every prompt is in [docs/PROMPTS.md](docs/PROMPTS.md).
+
 A private task list: each user sees their own tasks with a status, a priority and a due date, and can tell at a glance what's pending, in progress or overdue.
 
 Two ASP.NET Core 10 Web APIs (identity and tasks) over MongoDB, a React + TypeScript frontend, and nginx in front so the browser sees a single origin.
