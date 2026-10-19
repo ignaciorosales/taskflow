@@ -12,7 +12,7 @@ public sealed class MongoTaskRepository : ITaskRepository
     public MongoTaskRepository(IMongoDatabase database) => _tasks = database.GetCollection<TaskItem>(MongoSetup.TasksCollection);
 
     public async Task<TaskItem?> GetByIdAsync(Guid ownerId, Guid id, CancellationToken cancellationToken)
-        => await _tasks.Find(t => t.Id == id).FirstOrDefaultAsync(cancellationToken);
+        => await _tasks.Find(t => t.Id == id && t.OwnerId == ownerId && t.DeletedAt == null).FirstOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<TaskItem>> ListAsync(Guid ownerId, TaskQuery query, DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -41,10 +41,12 @@ public sealed class MongoTaskRepository : ITaskRepository
     public Task AddAsync(TaskItem task, CancellationToken cancellationToken)
         => _tasks.InsertOneAsync(task, cancellationToken: cancellationToken);
 
+    // Matching on the stored owner and deletedAt too, so a save that lost the race to a delete changes nothing.
     public async Task<bool> UpdateAsync(TaskItem task, CancellationToken cancellationToken)
     {
-        await _tasks.ReplaceOneAsync(t => t.Id == task.Id, task, cancellationToken: cancellationToken);
-        return true;
+        var result = await _tasks.ReplaceOneAsync(
+            t => t.Id == task.Id && t.OwnerId == task.OwnerId && t.DeletedAt == null, task, cancellationToken: cancellationToken);
+        return result.MatchedCount == 1;
     }
 
     private static FilterDefinition<TaskItem> Filter(Guid ownerId, TaskQuery query, DateTimeOffset now)

@@ -57,7 +57,8 @@ public sealed class TaskService
         if (edited.IsFailure)
             return Result<TaskDto>.Failure([.. edited.Errors]);
 
-        await _repository.UpdateAsync(task, cancellationToken);
+        if (!await _repository.UpdateAsync(task, cancellationToken))
+            return Result<TaskDto>.Failure(TaskErrors.NotFound);
         return Result<TaskDto>.Success(ToDto(task, now));
     }
 
@@ -72,7 +73,8 @@ public sealed class TaskService
         if (changed.IsFailure)
             return Result<TaskDto>.Failure([.. changed.Errors]);
 
-        await _repository.UpdateAsync(task, cancellationToken);
+        if (!await _repository.UpdateAsync(task, cancellationToken))
+            return Result<TaskDto>.Failure(TaskErrors.NotFound);
         return Result<TaskDto>.Success(ToDto(task, now));
     }
 
@@ -83,8 +85,7 @@ public sealed class TaskService
             return Result.Failure(TaskErrors.NotFound);
 
         task.Delete(Now());
-        await _repository.UpdateAsync(task, cancellationToken);
-        return Result.Success();
+        return await _repository.UpdateAsync(task, cancellationToken) ? Result.Success() : Result.Failure(TaskErrors.NotFound);
     }
 
     // Mongo stores milliseconds; trimming up front means a task always reads back exactly as it was returned.
