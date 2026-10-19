@@ -121,7 +121,7 @@ public sealed class AuthService
             : Result<UserDto>.Success(new UserDto(user.Id, user.Email.Value));
     }
 
-    // ponytail: read-then-write, so parallel failures can slip past the limit by a few; the per-IP rate limit caps that.
+    // Known limit: read-then-write, so parallel failures can slip past the limit by a few; the per-IP rate limit caps that.
     private Task RecordFailureAsync(string key, LoginAttempt? attempt, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var failures = (attempt?.Failures ?? 0) + 1;

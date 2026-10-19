@@ -33,7 +33,7 @@ public sealed class DemoSeeder
 
         var now = _timeProvider.GetUtcNow();
         var user = User.Create(email, _passwordHasher.Hash(Password), now);
-        // ponytail: a crash between the user and its tasks leaves a demo with no tasks; drop the database to reseed.
+        // Known limit: a crash between the user and its tasks leaves a demo with no tasks; drop the database to reseed.
         if ((await _users.AddAsync(user, cancellationToken)).IsFailure)
             return; // another instance seeded it first
 

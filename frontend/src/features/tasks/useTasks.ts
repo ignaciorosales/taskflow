@@ -44,7 +44,7 @@ function moveCard(board: Board, id: string, to: TaskStatus): Board {
 }
 
 /** Enough whole pages to show `shown` cards again, within what the API serves in one request. */
-// ponytail: a column past 100 loaded cards reloads its first 100; reload page by page if that ever matters.
+// Known limit: a column past 100 loaded cards reloads its first 100; reload page by page if that ever matters.
 const reloadSize = (shown: number) => Math.min(MAX_PAGE_SIZE, Math.max(1, Math.ceil(shown / COLUMN_PAGE_SIZE)) * COLUMN_PAGE_SIZE)
 
 function withoutCard(board: Board, id: string): Board {
