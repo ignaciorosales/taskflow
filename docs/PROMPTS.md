@@ -4,7 +4,7 @@ The prompts I used to build TaskFlow with Claude Code, in order.
 
 How I worked:
 - **Requirements and rules live in files, not in prompts.** `CLAUDE.md` holds the stack and working rules, and `docs/USER_STORY.md` holds the business rules. Each prompt only says what's new for that step.
-- **Ambiguities surfaced before code.** The AI reviews the user story and asks questions first; I make the product decisions.
+- **Ambiguities surfaced before code.** The AI reviews the user story and asks questions first; I make the product decisions. Mid-step questions come through Claude Code's interactive prompts: the AI lays out the options with their trade-offs and marks the one it recommends, and I pick one or type my own answer. A decision it can't settle alone stops the work until I answer.
 - **TDD on every layer.** Red → green → refactor, one commit per phase, so the git history shows it.
 - **One step per prompt**, and I review before the AI continues.
 - **A model for each job.** My usual split is Fable for planning (user story review, solution design, adversarial review) and Opus for development (the TDD steps, fixes, docs), switching with `/model`.
