@@ -19,13 +19,18 @@ public sealed class MongoTaskRepository : ITaskRepository
         var filter = Filter(ownerId, query, now);
         var total = await _tasks.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
 
+        // In long, since (page - 1) * pageSize can overflow an int; past the end there's nothing to fetch.
+        var skip = (long)(query.Page - 1) * query.PageSize;
+        if (skip >= total)
+            return new PagedResult<TaskItem>([], query.Page, query.PageSize, total);
+
         var items = await _tasks.Aggregate()
             .Match(filter)
             // Mongo sorts nulls first ascending; this flag keeps tasks without a due date last in both directions.
             .AppendStage<BsonDocument>(new BsonDocument("$addFields",
                 new BsonDocument("noDueDate", new BsonDocument("$eq", new BsonArray { "$dueDate", BsonNull.Value }))))
             .Sort(Sort(query))
-            .Skip((query.Page - 1) * query.PageSize)
+            .Skip((int)skip) // below total, which is far below int.MaxValue
             .Limit(query.PageSize)
             .As<TaskItem>()
             .ToListAsync(cancellationToken);
