@@ -295,6 +295,27 @@ Then, on the whole app:
 
 The ninth was a label: "Newest" contradicted the direction toggle, so it's now "Creation date". One new red test passed at first because its assertion could never match; I rewrote it so it failed for the right reason before any fix. The tenth finding I left: Safari may drop the `Secure` cookie on `http://localhost`, and Safari isn't a target for this demo.
 
+## 15. Card actions
+
+```
+Cards now drag between columns, so drop their move buttons, and show Edit and Delete as icons instead of words.
+```
+*Notes:* The AI pushed back before writing tests: the user story says tasks move between statuses "with buttons", and native drag and drop doesn't work on touch screens or from a keyboard. It offered three layouts with previews; I chose one Move icon that opens a menu of the other statuses, so cards show three icons and phones and keyboards can still move tasks. It built the menu with React state rather than the native popover, which opens centered on screen in browsers without CSS anchor positioning. Red, green and docs: `75ba836`, `afe3743`, `0741aed`.
+
+## 16. Badge alignment
+
+```
+The badges on a card sit on the right or the left depending on the title's length. Make their position consistent.
+```
+*Notes:* The cause was the title and badges sharing one row pushed apart (`space-between`) that wrapped when the title was long. They now always sit on their own row under the title. A layout fix with no behavior to test, so no red phase (`b82c7dc`).
+
+## 17. Database view for the demo
+
+```
+If the panel asks to see the database, I want a graphical view I can open during the demo, without changing the one-command setup.
+```
+*Notes:* The AI offered MongoDB Compass (an install, plus publishing Mongo's port) or Mongo Express in the browser; I chose Mongo Express. It's an optional compose service under a `tools` profile: off by default, reachable only from this machine, behind a login because it can edit data. Checked live: 401 without the login, 200 with it, all four collections listed (`2ad27e0`).
+
 ---
 
 ## GenAI exercise
