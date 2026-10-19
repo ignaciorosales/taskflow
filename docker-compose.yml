@@ -37,11 +37,11 @@ services:
 
   # The only published port: the APIs are reachable through nginx alone.
   web:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
     ports:
       - "8080:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - identity-api
       - tasks-api
