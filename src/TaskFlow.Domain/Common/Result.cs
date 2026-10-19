@@ -2,18 +2,24 @@ namespace TaskFlow.Domain.Common;
 
 public class Result
 {
-    public bool IsSuccess => throw new NotImplementedException();
-    public bool IsFailure => throw new NotImplementedException();
-    public IReadOnlyList<Error> Errors => throw new NotImplementedException();
+    protected Result(IReadOnlyList<Error> errors) => Errors = errors;
 
-    public static Result Success() => throw new NotImplementedException();
-    public static Result Failure(params Error[] errors) => throw new NotImplementedException();
+    public bool IsSuccess => Errors.Count == 0;
+    public bool IsFailure => !IsSuccess;
+    public IReadOnlyList<Error> Errors { get; }
+
+    public static Result Success() => new([]);
+    public static Result Failure(params Error[] errors) => new(errors);
 }
 
 public sealed class Result<T> : Result
 {
-    public T Value => throw new NotImplementedException();
+    private readonly T? _value;
 
-    public static Result<T> Success(T value) => throw new NotImplementedException();
-    public static new Result<T> Failure(params Error[] errors) => throw new NotImplementedException();
+    private Result(T? value, IReadOnlyList<Error> errors) : base(errors) => _value = value;
+
+    public T Value => IsSuccess ? _value! : throw new InvalidOperationException("A failed result has no value.");
+
+    public static Result<T> Success(T value) => new(value, []);
+    public static new Result<T> Failure(params Error[] errors) => new(default, errors);
 }
