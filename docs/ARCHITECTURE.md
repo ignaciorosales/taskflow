@@ -71,9 +71,10 @@ flowchart LR
 - **API:** the API rejects a date without an offset. Read in the server's own time zone, it would silently change depending on where the server runs.
 - **UI:** the UI shows and edits local time. An untouched due date is sent back exactly, because the input only has minute precision.
 
-**Privacy is enforced in the service.**
-- **How:** every single-task operation loads the task and checks the owner and the soft delete in one place (`FindOwnedAsync`). Someone else's, deleted and missing tasks all answer the same 404. Listing filters by owner in the query. The owner id always comes from the token, never from the request.
-- **Cost:** the repository's `GetById` and `Update` aren't owner-scoped, so a new use case has to go through the same helper.
+**Privacy is enforced twice: in the database and in the service.**
+- **Database:** the repository only finds and saves the owner's tasks that aren't deleted: `GetById` takes the owner id, and `Update` matches on it. Listing filters by owner too. A new use case can't reach someone else's task even if it forgets a check.
+- **Service:** every single-task operation also checks the owner and the soft delete in one place (`FindOwnedAsync`), and its tests prove that check on its own.
+- **Result:** someone else's, deleted and missing tasks all answer the same 404. The owner id always comes from the token, never from the request.
 
 **Sessions.**
 - **Access token:** a 15-minute HS256 JWT, kept in frontend memory only.
@@ -96,7 +97,8 @@ flowchart LR
 
 **Last write wins.**
 - **How:** `PUT` replaces the editable fields, and status has its own `PATCH`, so an edit made in another tab doesn't undo a status change.
-- **Cost:** there's no optimistic concurrency token, and the update replaces the whole document. A delete landing in the milliseconds between an update's read and its write can be undone.
+- **Deletes win:** a save only matches a task that's still not deleted, so an edit that loses the race against a delete changes nothing and answers 404 instead of bringing the task back.
+- **Cost:** there's no optimistic concurrency token, and the update replaces the whole document. A `PUT` and a `PATCH` landing in the same few milliseconds can still overwrite each other's fields.
 
 **Demo seed on Identity API startup.**
 - **How:** it's idempotent. If the demo email exists, it does nothing; if two instances race, the unique index lets only one win. The tasks are created through the normal domain rules, backdated, so the overdue and *Completed late* examples need no special path.
