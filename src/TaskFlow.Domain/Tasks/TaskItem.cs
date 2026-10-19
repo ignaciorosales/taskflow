@@ -25,7 +25,8 @@ public sealed class TaskItem
     public static Result<TaskItem> Create(
         Guid ownerId, string? title, string? description, TaskPriority? priority, DateTimeOffset? dueDate, DateTimeOffset now)
     {
-        var errors = ValidateFields(title, description, priority ?? TaskPriority.Medium);
+        var effectivePriority = priority ?? TaskPriority.Medium;
+        var errors = ValidateFields(title, description, effectivePriority);
         if (dueDate < now)
             errors.Add(TaskErrors.DueDateInPast);
 
@@ -38,7 +39,7 @@ public sealed class TaskItem
             OwnerId = ownerId,
             Title = title!.Trim(),
             Description = Clean(description),
-            Priority = priority ?? TaskPriority.Medium,
+            Priority = effectivePriority,
             DueDate = dueDate?.ToUniversalTime(),
             Status = TaskItemStatus.Todo,
             CreatedAt = now,
