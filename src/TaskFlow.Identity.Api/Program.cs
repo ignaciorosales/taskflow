@@ -34,6 +34,7 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 await MongoSetup.ConfigureAsync(app.Services.GetRequiredService<IMongoDatabase>());
+await ActivatorUtilities.CreateInstance<DemoSeeder>(app.Services).SeedAsync();
 
 app.UseForwardedHeaders();
 app.UseTaskFlowApi();
