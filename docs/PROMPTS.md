@@ -229,7 +229,7 @@ Add an idempotent seeder for the demo account in the user story. Then a docker-c
 runs with one command. The browser sees a single origin: Vite proxy in dev, nginx in compose,
 routing /api/auth and /api/tasks to each API. No CORS.
 ```
-*Notes:* The step 1 answers said the seeder would write the overdue demo task straight to the database. The code instead creates every demo task through the normal domain rules, backdated, so no special path skips validation. Tests prove the seeder is idempotent.
+*Notes:* The step 1 answers said the seeder would write the overdue demo task straight to the database. The code went a different way, and I kept it: every demo task is created through the normal domain rules, backdated, so no special path skips validation. Tests prove the seeder is idempotent.
 
 ## 10. Frontend
 
@@ -249,7 +249,7 @@ data in the feature's hook, UI-only state (open dialog, drag) in the component t
 Responsive without a UI library: three columns on wide screens, stacked on narrow ones, usable on a phone.
 Loading, empty and error states. No console warnings under StrictMode.
 ```
-*Notes:* Form error handling ended up duplicated in the task and login forms; the refactor shared it (`55bad21`). The first UI was a list with inline forms. After reviewing it I asked for the kanban board, the modal and the state and responsive rules, and the board went through its own red, green and refactor (`f921ef3`, `83237a5`, `9b74aa5`). That first UI also shipped the due-date rounding bug that the step 11 review found.
+*Notes:* Form error handling ended up duplicated in the task and login forms; the refactor shared it (`55bad21`). The first UI was a list with inline forms (`d05739b`). After steps 11 to 13 I came back to it: I added the kanban board, the modal and the state and responsive rules to this step's prompt, and the board went through its own red, green and refactor (`f921ef3`, `83237a5`, `9b74aa5`). That first UI also shipped the due-date rounding bug that the step 11 review found.
 
 ## 11. Adversarial review (fresh session)
 
@@ -257,14 +257,14 @@ Loading, empty and error states. No console warnings under StrictMode.
 Review this repo the way an interviewer would: architecture leaks, missing ownership checks, timezone bugs,
 tests that only prove the happy path. Don't fix anything; list the issues by severity with file and line.
 ```
-*Notes:* One high finding: editing the demo's overdue task failed, because the form rounded the due date to the minute and the server saw it moved into the past. The tests had missed it because they only used due dates that fell exactly on a minute. Three medium findings: a missing priority or status silently fell back to a default, a due date without an offset was read in the server's time zone, and nothing tested that the frontend runs a single refresh. Ten low findings. Ownership checks held everywhere.
+*Notes:* One high finding: editing the demo's overdue task failed, because the form rounded the due date to the minute and the server saw it moved into the past. The tests had missed it because they only used due dates that fell exactly on a minute. Three medium findings: a missing priority or status silently fell back to a default, a due date without an offset was read in the server's time zone, and nothing tested that the frontend runs a single refresh. Ten low findings. Ownership checks held everywhere, though only in the service; a low finding was that the repository didn't enforce them too.
 
 ## 12. Fix review findings
 
 ```
 Fix the high-severity issues one at a time. For each bug, first write the failing test that reproduces it.
 ```
-*Notes:* I fixed the high and medium findings, each red then green, one commit per phase. The mutation check caught a test that proved nothing: the StrictMode test still passed with the shared refresh removed, because a `<StrictMode>` wrapper in `renderHook` didn't run effects twice. Switching to `reactStrictMode: true` fixed it. A probe showed that ASP.NET reports JSON errors under keys like `$.dueDate`, which the form can't match to a field, so the fix also renames them to plain field names.
+*Notes:* I fixed the high finding and two medium ones, each red then green, one commit per phase. The third medium finding was a missing test: the behavior already worked, so its test passed at once, and a mutation check proved it. The mutation check caught a test that proved nothing: the StrictMode test still passed with the shared refresh removed, because a `<StrictMode>` wrapper in `renderHook` didn't run effects twice. Switching to `reactStrictMode: true` fixed it. A probe showed that ASP.NET reports JSON errors under keys like `$.dueDate`, which the form can't match to a field, so the fix also renames them to plain field names.
 
 ## 13. Docs + CI
 
@@ -306,6 +306,6 @@ and wait for my review before writing the implementation.
 
 *Notes:* How I validated the AI's output across the steps above:
 - **Tests before code:** I reviewed every red phase before any implementation, and no `feat:` commit in the history touches a test file.
-- **Mutation checks:** I broke a rule on purpose to see a test fail. One test proved nothing until it was fixed (step 12), and the login-screen tests caught both mutations they were checked with.
-- **A fresh-session review:** it found one high, three medium and ten low issues (step 11). The high and medium ones were fixed test-first, and so were four of the low ones.
-- **Auth and edge cases:** they came from the user story questions, not from the AI's defaults: lockout per email, one 404 for someone else's task, due dates as UTC instants, deletes winning over stale saves.
+- **Mutation checks:** I broke a rule on purpose to see a test fail. One test proved nothing until it was fixed (step 12). The login-screen tests (`45b572a`) caught both mutations they were checked with: register posting to the login endpoint, and field errors being dropped.
+- **A fresh-session review:** it found one high, three medium and ten low issues (step 11). The high one and two medium ones were fixed test-first; the third medium was a missing test, added and mutation-checked. Four low ones were also fixed test-first: page overflow (`3fb261f`), and owner-scoped lookups, saves after a delete and empty failures (`a14b4ae`).
+- **Auth and edge cases:** the rules came from my answers in step 1 (lockout per email, UTC due dates, last write wins) and the step 5 prompt (one 404 for someone else's task), not from the AI's defaults. The review then added two safeguards the story didn't spell out: ownership enforced in the database too, and deletes winning over stale saves.
