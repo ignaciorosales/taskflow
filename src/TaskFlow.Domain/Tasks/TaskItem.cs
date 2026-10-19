@@ -46,7 +46,7 @@ public sealed class TaskItem
         });
     }
 
-    public Result Edit(string? title, string? description, TaskPriority priority, DateTimeOffset? dueDate, DateTimeOffset now)
+    public Result Edit(string? title, string? description, TaskPriority? priority, DateTimeOffset? dueDate, DateTimeOffset now)
     {
         var errors = ValidateFields(title, description, priority);
         if (DueDate is not null && dueDate is null)
@@ -59,14 +59,14 @@ public sealed class TaskItem
 
         Title = title!.Trim();
         Description = Clean(description);
-        Priority = priority;
+        Priority = priority!.Value;
         DueDate = dueDate?.ToUniversalTime();
         return Result.Success();
     }
 
-    public Result ChangeStatus(TaskItemStatus status, DateTimeOffset now)
+    public Result ChangeStatus(TaskItemStatus? requested, DateTimeOffset now)
     {
-        if (!Enum.IsDefined(status))
+        if (requested is not { } status || !Enum.IsDefined(status))
             return Result.Failure(TaskErrors.StatusInvalid);
 
         if (status != TaskItemStatus.Done)
@@ -82,7 +82,7 @@ public sealed class TaskItem
 
     public void Delete(DateTimeOffset now) => DeletedAt = now;
 
-    private static List<Error> ValidateFields(string? title, string? description, TaskPriority priority)
+    private static List<Error> ValidateFields(string? title, string? description, TaskPriority? priority)
     {
         var errors = new List<Error>();
         if (string.IsNullOrWhiteSpace(title))
@@ -93,7 +93,7 @@ public sealed class TaskItem
         if (description?.Trim().Length > DescriptionMaxLength)
             errors.Add(TaskErrors.DescriptionTooLong);
 
-        if (!Enum.IsDefined(priority))
+        if (priority is not { } p || !Enum.IsDefined(p))
             errors.Add(TaskErrors.PriorityInvalid);
 
         return errors;

@@ -6,7 +6,7 @@ using TaskFlow.Domain.Tasks;
 
 namespace TaskFlow.Tasks.Api.Controllers;
 
-public sealed record ChangeStatusRequest(TaskItemStatus Status);
+public sealed record ChangeStatusRequest(TaskItemStatus? Status);
 
 [ApiController]
 [Authorize]

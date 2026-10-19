@@ -61,7 +61,7 @@ public sealed class TaskService
         return Result<TaskDto>.Success(ToDto(task, now));
     }
 
-    public async Task<Result<TaskDto>> ChangeStatusAsync(Guid userId, Guid taskId, TaskItemStatus status, CancellationToken cancellationToken)
+    public async Task<Result<TaskDto>> ChangeStatusAsync(Guid userId, Guid taskId, TaskItemStatus? status, CancellationToken cancellationToken)
     {
         var task = await FindOwnedAsync(userId, taskId, cancellationToken);
         if (task is null)

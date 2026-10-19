@@ -4,7 +4,7 @@ namespace TaskFlow.Application.Tasks;
 
 public sealed record CreateTaskRequest(string? Title, string? Description, TaskPriority? Priority, DateTimeOffset? DueDate);
 
-public sealed record UpdateTaskRequest(string? Title, string? Description, TaskPriority Priority, DateTimeOffset? DueDate);
+public sealed record UpdateTaskRequest(string? Title, string? Description, TaskPriority? Priority, DateTimeOffset? DueDate);
 
 public sealed record TaskDto(
     Guid Id,
