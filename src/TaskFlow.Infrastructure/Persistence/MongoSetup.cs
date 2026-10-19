@@ -12,6 +12,8 @@ public static class MongoSetup
 {
     public const string UsersCollection = "users";
     public const string TasksCollection = "tasks";
+    public const string RefreshTokensCollection = "refresh_tokens";
+    public const string LoginAttemptsCollection = "login_attempts";
 
     // Serialization is process-wide in the driver, so it's registered exactly once.
     static MongoSetup()
