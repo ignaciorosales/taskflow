@@ -186,6 +186,14 @@ public class AuthEndpointsTests(IdentityApiFactory factory) : IClassFixture<Iden
     }
 
     [Fact]
+    public async Task Demo_account_is_ready_as_soon_as_the_api_starts()
+    {
+        var response = await _client.LoginAsync("demo@taskflow.dev", "Demo123!");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Health_is_public_and_healthy()
     {
         var response = await _client.GetAsync("/health");
