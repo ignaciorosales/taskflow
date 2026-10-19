@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
-import { formatDate, STATUS_ACTIONS, STATUS_LABEL } from './labels'
+import { DeleteIcon, EditIcon, MoveIcon } from '../../components/icons'
+import { formatDate, STATUS_LABEL, STATUSES } from './labels'
 import type { Task, TaskStatus } from './types'
 
 /** What a dragged card carries: a type of our own, so text or links dragged in from elsewhere are never read as a task. */
@@ -17,6 +18,7 @@ interface TaskCardProps {
 export function TaskCard({ task, onEdit, onChangeStatus, onDelete }: TaskCardProps) {
   const [confirming, setConfirming] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,18 +82,48 @@ export function TaskCard({ task, onEdit, onChangeStatus, onDelete }: TaskCardPro
           </button>
         </div>
       ) : (
-        <div className="task-actions">
-          {STATUS_ACTIONS[task.status].map(({ to, label }) => (
-            <button key={to} type="button" className="button secondary" onClick={() => onChangeStatus(to)}>
-              {label}
+        <div className="task-actions icons">
+          {/* Drag is the quick way to move a card; this menu is the way on touch screens and keyboards. */}
+          <div
+            className="move"
+            onKeyDown={(e) => e.key === 'Escape' && setMoveMenuOpen(false)}
+            onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setMoveMenuOpen(false)}
+          >
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Move"
+              title="Move to…"
+              aria-haspopup="menu"
+              aria-expanded={moveMenuOpen}
+              onClick={() => setMoveMenuOpen((open) => !open)}
+            >
+              <MoveIcon />
             </button>
-          ))}
-          <span className="spacer" />
-          <button type="button" className="button ghost" onClick={onEdit}>
-            Edit
+            {moveMenuOpen && (
+              <div className="menu" role="menu" aria-label="Move to">
+                {STATUSES.filter((s) => s !== task.status).map((to, i) => (
+                  <button
+                    key={to}
+                    type="button"
+                    role="menuitem"
+                    autoFocus={i === 0}
+                    onClick={() => {
+                      setMoveMenuOpen(false)
+                      onChangeStatus(to)
+                    }}
+                  >
+                    {STATUS_LABEL[to]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button type="button" className="icon-button" aria-label="Edit" title="Edit" onClick={onEdit}>
+            <EditIcon />
           </button>
-          <button type="button" className="button ghost danger-text" onClick={() => setConfirming(true)}>
-            Delete
+          <button type="button" className="icon-button danger-text" aria-label="Delete" title="Delete" onClick={() => setConfirming(true)}>
+            <DeleteIcon />
           </button>
         </div>
       )}

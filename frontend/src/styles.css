@@ -127,6 +127,27 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 .task-actions .spacer { flex: 1; }
 .task-actions.confirm span { font-weight: 600; margin-right: 0.25rem; }
 
+/* Card icons: Move, Edit, Delete, right-aligned with room for a finger */
+.task-actions.icons { justify-content: flex-end; gap: 0.25rem; }
+.icon-button {
+  display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0;
+  border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
+}
+.icon-button:hover { background: var(--bg); color: var(--text); }
+.icon-button.danger-text:hover { color: var(--danger); }
+.icon-button[aria-expanded='true'] { background: var(--bg); color: var(--text); }
+.move { position: relative; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 2; min-width: 9rem;
+  display: grid; padding: 0.25rem; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
+}
+.menu [role='menuitem'] {
+  font: inherit; font-size: 0.9rem; text-align: left; padding: 0.45rem 0.65rem;
+  border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer;
+}
+.menu [role='menuitem']:hover, .menu [role='menuitem']:focus-visible { background: var(--bg); box-shadow: none; }
+
 .badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .badge { font-size: 0.75rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
 .badge.priority-high { color: var(--danger); }
