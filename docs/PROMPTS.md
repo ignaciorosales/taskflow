@@ -164,6 +164,11 @@ Result: [docs/PLAN.md](PLAN.md).
 Scaffold the solution we agreed on. Projects and references only, no classes yet.
 Central Package Management, warnings as errors, and it must build clean.
 ```
+<details>
+<summary>The AI's questions</summary>
+
+1. The xUnit template adds `xunit`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` and `coverlet.collector`. Approve? → Yes. The `Microsoft.AspNetCore.OpenApi` package added by the webapi template was removed until step 8.
+</details>
 *Notes:*
 
 ## 4. Domain: red
