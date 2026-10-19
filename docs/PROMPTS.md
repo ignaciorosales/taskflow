@@ -234,13 +234,20 @@ routing /api/auth and /api/tasks to each API. No CORS.
 ## 10. Frontend
 
 ```
-Red phase. Vitest + Testing Library tests for the task form and the tasks hook:
-server validation errors are shown in the form, and a 401 logs the user out.
+Red phase. Vitest + Testing Library tests for the task form, the tasks hook and the tasks screen:
+server validation errors are shown in the form, and a 401 logs the user out. The tasks screen is a kanban
+board with one column per status: dragging a card onto another column moves it, New task and Edit open
+a modal dialog, and each column loads more on demand.
 ```
 Green:
 ```
-React frontend for the user story: login/register and a tasks screen. Feature-based folders, a typed API client,
-auth in a context. Responsive without a UI library. Loading, empty and error states. No console warnings under StrictMode.
+React frontend for the user story: login/register and a kanban board of tasks. Cards are dragged between
+the status columns with native drag and drop; keep the status buttons for keyboard and touch. Moves apply
+right away and roll back if the server refuses. New task and Edit open a modal dialog instead of pushing
+the page down. Feature-based folders, a typed API client, auth in a context. Keep state ordered: server
+data in the feature's hook, UI-only state (open dialog, drag) in the component that owns it, no global store.
+Responsive without a UI library: three columns on wide screens, stacked on narrow ones, usable on a phone.
+Loading, empty and error states. No console warnings under StrictMode.
 ```
 *Notes:*
 
@@ -250,14 +257,14 @@ auth in a context. Responsive without a UI library. Loading, empty and error sta
 Review this repo the way an interviewer would: architecture leaks, missing ownership checks, timezone bugs,
 tests that only prove the happy path. Don't fix anything; list the issues by severity with file and line.
 ```
-*Notes:*
+*Notes:* One high finding: editing the demo's overdue task failed, because the form rounded the due date to the minute and the server saw it moved into the past. The tests had missed it because they only used due dates that fell exactly on a minute. Three medium findings: a missing priority or status silently fell back to a default, a due date without an offset was read in the server's time zone, and nothing tested that the frontend runs a single refresh. Ten low findings. Ownership checks held everywhere.
 
 ## 12. Fix review findings
 
 ```
 Fix the high-severity issues one at a time. For each bug, first write the failing test that reproduces it.
 ```
-*Notes:*
+*Notes:* I fixed the high and medium findings, each red then green, one commit per phase. The mutation check caught a test that proved nothing: the StrictMode test still passed with the shared refresh removed, because a `<StrictMode>` wrapper in `renderHook` didn't run effects twice. Switching to `reactStrictMode: true` fixed it. A probe showed that ASP.NET reports JSON errors under keys like `$.dueDate`, which the form can't match to a field, so the fix also renames them to plain field names.
 
 ## 13. Docs + CI
 
@@ -266,7 +273,7 @@ Write the README: what it is, the user story, one-command setup, demo credential
 Add docs/ARCHITECTURE.md with a Mermaid diagram of the layers and the main decisions with their trade-offs.
 Then a GitHub Actions workflow that builds and tests on every push, with Docker for Testcontainers, and its badge in the README.
 ```
-*Notes:*
+*Notes:* The docs quote no coverage percentage. Each test project's coverage file includes the other projects it loads, so the files overlap and there's no single honest figure without adding ReportGenerator. CI passed on the first run, including the Testcontainers tests.
 
 ---
 
