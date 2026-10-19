@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -53,7 +52,7 @@ public sealed class AuthController(AuthService auth) : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
-        var result = await auth.GetMeAsync(Guid.Parse(User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value), cancellationToken);
+        var result = await auth.GetMeAsync(User.UserId(), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Errors);
     }
 
