@@ -2,6 +2,9 @@ import type { TaskSortBy, TaskStatus } from './types'
 
 export const STATUS_LABEL: Record<TaskStatus, string> = { Todo: 'To do', InProgress: 'In progress', Done: 'Done' }
 
+/** The board's columns, in order. */
+export const STATUSES = Object.keys(STATUS_LABEL) as TaskStatus[]
+
 export const SORT_LABEL: Record<TaskSortBy, string> = { CreatedAt: 'Newest', DueDate: 'Due date', Priority: 'Priority' }
 
 /** The buttons a task offers, by its current status. Any move is allowed; these are the useful ones. */

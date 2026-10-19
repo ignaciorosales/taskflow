@@ -1,46 +1,51 @@
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import { formatDate, STATUS_ACTIONS, STATUS_LABEL } from './labels'
-import { TaskForm } from './TaskForm'
-import type { Task, TaskInput, TaskStatus } from './types'
+import type { Task, TaskStatus } from './types'
+
+/** What a dragged card carries; the plain type is the one every browser starts a drag with. */
+export const DRAG_TYPE = 'text/plain'
 
 interface TaskCardProps {
   task: Task
-  onUpdate(input: TaskInput): Promise<void>
-  onChangeStatus(status: TaskStatus): Promise<void>
+  onEdit(): void
+  /** Never rejects: the page shows a refused move, since the card itself jumps columns. */
+  onChangeStatus(status: TaskStatus): void
   onDelete(): Promise<void>
 }
 
-export function TaskCard({ task, onUpdate, onChangeStatus, onDelete }: TaskCardProps) {
-  const [mode, setMode] = useState<'view' | 'edit' | 'confirm-delete'>('view')
+export function TaskCard({ task, onEdit, onChangeStatus, onDelete }: TaskCardProps) {
+  const [confirming, setConfirming] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function run(action: () => Promise<void>) {
+  async function remove() {
     setBusy(true)
     setError(null)
     try {
-      await action()
+      await onDelete()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'That didn’t work. Please try again.')
       setBusy(false)
     }
   }
 
-  if (mode === 'edit')
-    return (
-      <li className="card task editing">
-        <TaskForm initial={task} onSubmit={async (input) => {
-          await onUpdate(input)
-          setMode('view')
-        }} onCancel={() => setMode('view')} />
-      </li>
-    )
-
-  const classes = ['card', 'task', `status-${task.status.toLowerCase()}`, task.isOverdue && 'overdue'].filter(Boolean).join(' ')
+  const classes = ['card', 'task', `status-${task.status.toLowerCase()}`, task.isOverdue && 'overdue', dragging && 'dragging']
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <li className={classes}>
+    <li
+      className={classes}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_TYPE, task.id)
+        e.dataTransfer.effectAllowed = 'move'
+        setDragging(true)
+      }}
+      onDragEnd={() => setDragging(false)}
+    >
       <div className="task-head">
         <h3 className="task-title">{task.title}</h3>
         <div className="badges">
@@ -64,37 +69,28 @@ export function TaskCard({ task, onUpdate, onChangeStatus, onDelete }: TaskCardP
         </p>
       )}
 
-      {mode === 'confirm-delete' ? (
+      {confirming ? (
         <div className="task-actions confirm" role="group" aria-label="Confirm delete">
           <span>Delete this task?</span>
-          <button type="button" className="button danger" disabled={busy} onClick={() => run(onDelete)}>
+          <button type="button" className="button danger" disabled={busy} onClick={remove}>
             Delete
           </button>
-          <button type="button" className="button secondary" disabled={busy} onClick={() => setMode('view')}>
+          <button type="button" className="button secondary" disabled={busy} onClick={() => setConfirming(false)}>
             Keep it
           </button>
         </div>
       ) : (
         <div className="task-actions">
           {STATUS_ACTIONS[task.status].map(({ to, label }) => (
-            <button
-              key={to}
-              type="button"
-              className="button secondary"
-              disabled={busy}
-              onClick={() => run(async () => {
-                await onChangeStatus(to)
-                setBusy(false)
-              })}
-            >
+            <button key={to} type="button" className="button secondary" onClick={() => onChangeStatus(to)}>
               {label}
             </button>
           ))}
           <span className="spacer" />
-          <button type="button" className="button ghost" disabled={busy} onClick={() => setMode('edit')}>
+          <button type="button" className="button ghost" onClick={onEdit}>
             Edit
           </button>
-          <button type="button" className="button ghost danger-text" disabled={busy} onClick={() => setMode('confirm-delete')}>
+          <button type="button" className="button ghost danger-text" onClick={() => setConfirming(true)}>
             Delete
           </button>
         </div>
