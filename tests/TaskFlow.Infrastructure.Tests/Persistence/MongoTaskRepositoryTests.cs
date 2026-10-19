@@ -195,6 +195,21 @@ public class MongoTaskRepositoryTests(MongoFixture mongo) : IClassFixture<MongoF
         Assert.Equal(5, page.TotalCount);
     }
 
+    [Theory]
+    [InlineData(4)]
+    [InlineData(int.MaxValue)] // (page - 1) * pageSize no longer fits an int
+    public async Task A_page_past_the_end_is_empty_however_far_it_is(int pageNumber)
+    {
+        var repository = await RepositoryAsync();
+        await AddAllAsync(repository, [.. Enumerable.Range(1, 5).Select(i => NewTask(_owner, $"Task {i}"))]);
+
+        var page = await repository.ListAsync(_owner, new TaskQuery(Page: pageNumber, PageSize: TaskQuery.MaxPageSize), T0, default);
+
+        Assert.Empty(page.Items);
+        Assert.Equal(pageNumber, page.Page);
+        Assert.Equal(5, page.TotalCount);
+    }
+
     [Fact]
     public async Task Paging_through_ties_returns_every_task_exactly_once()
     {
