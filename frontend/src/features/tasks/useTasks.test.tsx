@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../api/client'
-import { aTask, fakeApi, pageOf, reply, session } from '../../test/fakeApi'
+import { aTask, board, fakeApi, reply, session, type Reply } from '../../test/fakeApi'
 import { AuthProvider, useAuth } from '../auth/AuthContext'
-import type { TaskQuery } from './types'
+import type { Task, TaskQuery } from './types'
 import { useTasks } from './useTasks'
 
 function renderTasks(query: TaskQuery = {}) {
@@ -13,40 +13,48 @@ function renderTasks(query: TaskQuery = {}) {
   })
 }
 
+const titles = (tasks: Task[] | undefined) => tasks?.map((t) => t.title)
 const input = { title: 'Buy milk', description: null, priority: 'High' as const, dueDate: null }
 
 describe('useTasks', () => {
-  it('loads my tasks with the filters in the query string and my access token', async () => {
-    const api = fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': reply(200, pageOf(aTask())) })
+  it('loads one column per status, each with the filters and my access token', async () => {
+    const tasks = [aTask({ title: 'A', status: 'Todo' }), aTask({ title: 'B', status: 'InProgress' }), aTask({ title: 'C', status: 'Done' })]
+    const api = fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': board(tasks) })
 
-    const { result } = renderTasks({ status: 'InProgress', sortBy: 'Priority', descending: true })
+    const { result } = renderTasks({ priority: 'High', sortBy: 'Priority', descending: true })
 
-    await waitFor(() => expect(result.current.tasks.page?.items).toHaveLength(1))
-    const [call] = api.calls('GET /api/tasks')
-    expect(Object.fromEntries(call.url.searchParams)).toEqual({ status: 'InProgress', sortBy: 'Priority', descending: 'true' })
-    expect(call.headers.get('Authorization')).toBe('Bearer token-1')
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Done.items)).toEqual(['C']))
+    expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A'])
+    expect(titles(result.current.tasks.columns?.InProgress.items)).toEqual(['B'])
+    const calls = api.calls('GET /api/tasks')
+    expect(calls.map((c) => c.url.searchParams.get('status')).sort()).toEqual(['Done', 'InProgress', 'Todo'])
+    for (const call of calls) {
+      expect(Object.fromEntries(call.url.searchParams)).toMatchObject({ priority: 'High', sortBy: 'Priority', descending: 'true', page: '1', pageSize: '20' })
+      expect(call.headers.get('Authorization')).toBe('Bearer token-1')
+    }
   })
 
-  it('is loading until the first page arrives', async () => {
-    fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': reply(200, pageOf()) })
+  it('is loading until every column arrives', async () => {
+    fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': board([]) })
 
     const { result } = renderTasks()
 
     expect(result.current.tasks.isLoading).toBe(true)
     await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
-    expect(result.current.tasks.page?.items).toEqual([])
+    expect(result.current.tasks.columns?.Todo).toEqual({ items: [], totalCount: 0 })
   })
 
-  it('refreshes the session once on a 401 and retries with the new token', async () => {
+  it('refreshes the session on a 401 and retries with the new token', async () => {
     const api = fakeApi({
       'POST /api/auth/refresh': [session('token-1'), session('token-2')],
-      'GET /api/tasks': [reply(401), reply(200, pageOf(aTask()))],
+      'GET /api/tasks': [reply(401), reply(401), reply(401), board([aTask({ title: 'A' })])],
     })
 
     const { result } = renderTasks()
 
-    await waitFor(() => expect(result.current.tasks.page?.items).toHaveLength(1))
-    expect(api.calls('GET /api/tasks').map((c) => c.headers.get('Authorization'))).toEqual(['Bearer token-1', 'Bearer token-2'])
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A']))
+    expect(api.calls('POST /api/auth/refresh')).toHaveLength(2)
+    expect(api.calls('GET /api/tasks').slice(3).map((c) => c.headers.get('Authorization'))).toEqual(Array(3).fill('Bearer token-2'))
     expect(result.current.auth.status).toBe('authenticated')
   })
 
@@ -74,22 +82,84 @@ describe('useTasks', () => {
     expect(result.current.auth.status).toBe('authenticated')
   })
 
-  it('reloads when the filters change', async () => {
-    const api = fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': reply(200, pageOf()) })
-    const { result, rerender } = renderTasks({ status: 'Todo' })
+  it('reloads every column when the filters change', async () => {
+    const api = fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': board([]) })
+    const { result, rerender } = renderTasks({ priority: 'Low' })
     await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
 
-    rerender({ query: { status: 'Done' } })
+    rerender({ query: { priority: 'High' } })
 
-    await waitFor(() => expect(api.calls('GET /api/tasks').at(-1)?.url.searchParams.get('status')).toBe('Done'))
+    await waitFor(() => expect(api.calls('GET /api/tasks').slice(3).map((c) => c.url.searchParams.get('priority'))).toEqual(Array(3).fill('High')))
   })
 
-  it('creates a task and reloads the list', async () => {
+  it('loads more of one column by appending its next page', async () => {
+    const todo = Array.from({ length: 25 }, (_, i) => aTask({ title: `T${i + 1}` }))
+    const api = fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': board(todo) })
+    const { result } = renderTasks()
+    await waitFor(() => expect(result.current.tasks.columns?.Todo.items).toHaveLength(20))
+    expect(result.current.tasks.columns?.Todo.totalCount).toBe(25)
+
+    await act(() => result.current.tasks.loadMore('Todo'))
+
+    expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(titles(todo))
+    const [more] = api.calls('GET /api/tasks').slice(3)
+    expect(Object.fromEntries(more.url.searchParams)).toMatchObject({ status: 'Todo', page: '2' })
+    expect(api.calls('GET /api/tasks')).toHaveLength(4)
+  })
+
+  it('moves a task to its new column right away, before the server answers', async () => {
+    const task = aTask({ title: 'A', status: 'Todo' })
+    let answer!: () => void
+    const held: Reply = (call) => new Promise((resolve) => (answer = () => resolve(reply(200, { ...task, status: 'Done' })(call) as Response)))
+    const api = fakeApi({
+      'POST /api/auth/refresh': session('token-1'),
+      'GET /api/tasks': board([task]),
+      [`PATCH /api/tasks/${task.id}/status`]: held,
+    })
+    const { result } = renderTasks()
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A']))
+
+    let moved!: Promise<void>
+    act(() => {
+      moved = result.current.tasks.changeStatus(task.id, 'Done')
+    })
+
+    expect(result.current.tasks.columns?.Todo.items).toEqual([])
+    expect(result.current.tasks.columns?.Done.items.map((t) => [t.title, t.status])).toEqual([['A', 'Done']])
+    expect(api.calls(`PATCH /api/tasks/${task.id}/status`)[0]?.body).toEqual({ status: 'Done' })
+    await act(async () => {
+      answer()
+      await moved
+    })
+  })
+
+  it('puts the task back where it was when the move is refused', async () => {
+    const task = aTask({ title: 'A', status: 'Todo' })
+    fakeApi({
+      'POST /api/auth/refresh': session('token-1'),
+      'GET /api/tasks': board([task]),
+      [`PATCH /api/tasks/${task.id}/status`]: reply(404, { title: 'Task not found.' }),
+    })
+    const { result } = renderTasks()
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A']))
+
+    let error: unknown
+    await act(async () => {
+      error = await result.current.tasks.changeStatus(task.id, 'Done').catch((e: unknown) => e)
+    })
+
+    expect(error).toBeInstanceOf(ApiError)
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A']))
+    expect(result.current.tasks.columns?.Done.items).toEqual([])
+  })
+
+  it('creates a task and reloads the board', async () => {
+    const tasks: Task[] = []
     const created = aTask({ title: 'Buy milk' })
     const api = fakeApi({
       'POST /api/auth/refresh': session('token-1'),
-      'GET /api/tasks': [reply(200, pageOf()), reply(200, pageOf(created))],
-      'POST /api/tasks': reply(201, created),
+      'GET /api/tasks': board(tasks),
+      'POST /api/tasks': (call) => (tasks.push(created), reply(201, created)(call)),
     })
     const { result } = renderTasks()
     await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
@@ -97,13 +167,13 @@ describe('useTasks', () => {
     await act(() => result.current.tasks.create(input))
 
     expect(api.calls('POST /api/tasks')[0].body).toEqual(input)
-    await waitFor(() => expect(result.current.tasks.page?.items).toEqual([created]))
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['Buy milk']))
   })
 
   it('rejects a create with the server validation errors so the form can show them', async () => {
     fakeApi({
       'POST /api/auth/refresh': session('token-1'),
-      'GET /api/tasks': reply(200, pageOf()),
+      'GET /api/tasks': board([]),
       'POST /api/tasks': reply(400, { title: 'One or more validation errors occurred.', errors: { title: ['Title is required.'] } }),
     })
     const { result } = renderTasks()
@@ -116,25 +186,22 @@ describe('useTasks', () => {
     expect(result.current.auth.status).toBe('authenticated')
   })
 
-  it('updates, changes status and deletes, reloading after each', async () => {
+  it('updates and deletes, reloading the board after each', async () => {
     const task = aTask()
     const api = fakeApi({
       'POST /api/auth/refresh': session('token-1'),
-      'GET /api/tasks': reply(200, pageOf(task)),
+      'GET /api/tasks': board([task]),
       [`PUT /api/tasks/${task.id}`]: reply(200, task),
-      [`PATCH /api/tasks/${task.id}/status`]: reply(200, task),
       [`DELETE /api/tasks/${task.id}`]: reply(204),
     })
     const { result } = renderTasks()
     await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
 
     await act(() => result.current.tasks.update(task.id, input))
-    await act(() => result.current.tasks.changeStatus(task.id, 'Done'))
     await act(() => result.current.tasks.remove(task.id))
 
     expect(api.calls(`PUT /api/tasks/${task.id}`)[0].body).toEqual(input)
-    expect(api.calls(`PATCH /api/tasks/${task.id}/status`)[0].body).toEqual({ status: 'Done' })
     expect(api.calls(`DELETE /api/tasks/${task.id}`)).toHaveLength(1)
-    await waitFor(() => expect(api.calls('GET /api/tasks')).toHaveLength(4))
+    await waitFor(() => expect(api.calls('GET /api/tasks')).toHaveLength(9))
   })
 })

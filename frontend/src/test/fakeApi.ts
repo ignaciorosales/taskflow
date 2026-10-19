@@ -8,7 +8,8 @@ export interface Call {
   body: unknown
 }
 
-type Reply = () => Response
+/** Builds the response for a call; it may wait, to hold a request in flight. */
+export type Reply = (call: Call) => Response | Promise<Response>
 
 export function reply(status: number, body?: unknown): Reply {
   return () =>
@@ -29,16 +30,12 @@ export function fakeApi(routes: Record<string, Reply | Reply[]>) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init = {}) => {
     const url = new URL(String(input), 'http://localhost')
     const method = (init.method ?? 'GET').toUpperCase()
-    calls.push({
-      method,
-      url,
-      headers: new Headers(init.headers),
-      body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
-    })
+    const call = { method, url, headers: new Headers(init.headers), body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined }
+    calls.push(call)
     const route = routes[`${method} ${url.pathname}`]
     const next = Array.isArray(route) ? (route.length > 1 ? route.shift() : route[0]) : route
     if (!next) throw new Error(`Unexpected request: ${method} ${url.pathname}`)
-    return next()
+    return next(call)
   })
   return { calls: (key: string) => calls.filter((c) => `${c.method} ${c.url.pathname}` === key) }
 }
@@ -62,3 +59,15 @@ export function aTask(overrides: Partial<Task> = {}): Task {
 }
 
 export const pageOf = (...items: Task[]) => ({ items, page: 1, pageSize: 20, totalCount: items.length })
+
+/** Answers GET /api/tasks like the server: the tasks with the requested status, a page at a time. Reads the list on every call. */
+export function board(tasks: Task[]): Reply {
+  return (call) => {
+    const params = call.url.searchParams
+    const matching = tasks.filter((t) => t.status === params.get('status'))
+    const page = Number(params.get('page') ?? 1)
+    const pageSize = Number(params.get('pageSize') ?? 20)
+    const items = matching.slice((page - 1) * pageSize, page * pageSize)
+    return reply(200, { items, page, pageSize, totalCount: matching.length })(call)
+  }
+}
