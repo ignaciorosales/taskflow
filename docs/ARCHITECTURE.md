@@ -79,7 +79,7 @@ flowchart LR
 **Sessions.**
 - **Access token:** a 15-minute HS256 JWT, kept in frontend memory only.
 - **Refresh token:** a random 256-bit value in an `HttpOnly`, `Secure`, `SameSite=Strict` cookie scoped to `/api/auth`. Only its SHA-256 hash is stored, with a TTL index for cleanup. Each use rotates it through a conditional update, so two racing requests can't both rotate the same token.
-- **Reuse detection:** reusing a rotated token revokes every session of that user, on the assumption that it was stolen. That makes the frontend share one in-flight refresh between all callers. Otherwise StrictMode or two parallel 401s would log the user out.
+- **Reuse detection:** reusing a rotated token revokes every session of that user, on the assumption that it was stolen. That makes the frontend share one in-flight refresh between all callers. Otherwise StrictMode or two parallel 401s would log the user out. Across tabs, which share the cookie, refreshes take turns under a Web Lock, so a second tab sends the rotated cookie, not the used one.
 - **Cost:** an access token stays valid for up to 15 minutes after logout.
 
 **Lockout in Mongo, rate limit in memory.**
