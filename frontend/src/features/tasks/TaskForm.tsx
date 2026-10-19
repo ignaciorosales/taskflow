@@ -22,7 +22,8 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'Medium')
-  const [dueDate, setDueDate] = useState(initial?.dueDate ? toLocalInput(initial.dueDate) : '')
+  const initialDueDate = initial?.dueDate ? toLocalInput(initial.dueDate) : ''
+  const [dueDate, setDueDate] = useState(initialDueDate)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -37,7 +38,8 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
         title,
         description: description.trim() ? description : null,
         priority,
-        dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        // The input only shows minutes; an untouched date goes back exact, or the server sees it moved into the past.
+        dueDate: dueDate === initialDueDate ? (initial?.dueDate ?? null) : dueDate ? new Date(dueDate).toISOString() : null,
       })
     } catch (error) {
       const errors = toFormErrors(error, "Couldn't save the task. Please try again.")
