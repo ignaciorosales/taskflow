@@ -4,4 +4,8 @@
     <ProjectReference Include="..\TaskFlow.Application\TaskFlow.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" />
+  </ItemGroup>
+
 </Project>
