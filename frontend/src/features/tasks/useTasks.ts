@@ -28,9 +28,8 @@ export interface UseTasks {
 }
 
 function columnUrl(query: TaskQuery, status: TaskStatus, page: number): string {
-  const { priority, overdueOnly, sortBy, descending } = query
   const params = new URLSearchParams()
-  for (const [key, value] of Object.entries({ status, priority, overdueOnly, sortBy, descending, page, pageSize: COLUMN_PAGE_SIZE }))
+  for (const [key, value] of Object.entries({ status, ...query, page, pageSize: COLUMN_PAGE_SIZE }))
     if (value !== undefined) params.set(key, String(value))
   return `/api/tasks?${params}`
 }

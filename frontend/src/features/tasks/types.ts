@@ -23,14 +23,12 @@ export interface TaskInput {
   dueDate: string | null
 }
 
+/** The filters and sort the board applies to every column; status and paging are per column. */
 export interface TaskQuery {
-  status?: TaskStatus
   priority?: TaskPriority
   overdueOnly?: boolean
   sortBy?: TaskSortBy
   descending?: boolean
-  page?: number
-  pageSize?: number
 }
 
 export interface Page<T> {
