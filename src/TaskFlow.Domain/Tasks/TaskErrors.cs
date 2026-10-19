@@ -11,4 +11,5 @@ public static class TaskErrors
     public static readonly Error DueDateCannotBeRemoved = new("task.due_date_cannot_be_removed", "Due date can't be removed once set.", "dueDate");
     public static readonly Error PriorityInvalid = new("task.priority_invalid", "Priority is not valid.", "priority");
     public static readonly Error StatusInvalid = new("task.status_invalid", "Status is not valid.", "status");
+    public static readonly Error NotFound = new("task.not_found", "Task not found.");
 }
