@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
-import { ApiError } from '../../api/client'
+import { errorAttributes, FieldError, FormError, toFormErrors, type FieldErrors } from '../../components/formErrors'
 import { useAuth } from './AuthContext'
 
 const DEMO = { email: 'demo@taskflow.dev', password: 'Demo123!' }
@@ -10,7 +10,7 @@ export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -28,15 +28,12 @@ export function AuthPage() {
     try {
       await (mode === 'login' ? login : register)(email, password)
     } catch (error) {
-      if (!(error instanceof ApiError)) setFormError("Couldn't reach the server. Please try again.")
-      else if (Object.keys(error.fieldErrors).length > 0) setFieldErrors(error.fieldErrors)
-      else setFormError(error.message)
+      const errors = toFormErrors(error, "Couldn't reach the server. Please try again.")
+      setFieldErrors(errors.fieldErrors)
+      setFormError(errors.formError)
       setBusy(false)
     }
   }
-
-  const describe = (field: string) =>
-    fieldErrors[field] ? { 'aria-invalid': true, 'aria-describedby': `${id}-${field}-error` } : {}
 
   return (
     <main className="auth">
@@ -68,13 +65,9 @@ export function AuthPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              {...describe('email')}
+              {...errorAttributes(id, 'email', fieldErrors)}
             />
-            {fieldErrors.email && (
-              <p className="field-error" id={`${id}-email-error`}>
-                {fieldErrors.email.join(' ')}
-              </p>
-            )}
+            <FieldError formId={id} field="email" errors={fieldErrors} />
           </div>
 
           <div className="field">
@@ -85,22 +78,15 @@ export function AuthPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              {...describe('password')}
+              {...errorAttributes(id, 'password', fieldErrors)}
             />
-            {fieldErrors.password ? (
-              <p className="field-error" id={`${id}-password-error`}>
-                {fieldErrors.password.join(' ')}
-              </p>
-            ) : (
-              mode === 'register' && <p className="hint">At least 8 characters, with a letter, a digit and a symbol.</p>
+            <FieldError formId={id} field="password" errors={fieldErrors} />
+            {!fieldErrors.password && mode === 'register' && (
+              <p className="hint">At least 8 characters, with a letter, a digit and a symbol.</p>
             )}
           </div>
 
-          {formError && (
-            <p className="form-error" role="alert">
-              {formError}
-            </p>
-          )}
+          <FormError message={formError} />
 
           <button type="submit" className="button primary wide" disabled={busy}>
             {busy ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}

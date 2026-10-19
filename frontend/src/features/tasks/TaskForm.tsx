@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
-import { ApiError } from '../../api/client'
+import { errorAttributes, FieldError, FormError, toFormErrors, type FieldErrors } from '../../components/formErrors'
 import type { Task, TaskInput, TaskPriority } from './types'
 
 export interface TaskFormProps {
@@ -23,7 +23,7 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
   const [description, setDescription] = useState(initial?.description ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'Medium')
   const [dueDate, setDueDate] = useState(initial?.dueDate ? toLocalInput(initial.dueDate) : '')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({})
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -40,32 +40,20 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       })
     } catch (error) {
-      if (!(error instanceof ApiError)) setFormError("Couldn't save the task. Please try again.")
-      else if (Object.keys(error.fieldErrors).length > 0) setFieldErrors(error.fieldErrors)
-      else setFormError(error.message)
+      const errors = toFormErrors(error, "Couldn't save the task. Please try again.")
+      setFieldErrors(errors.fieldErrors)
+      setFormError(errors.formError)
     } finally {
       setSaving(false)
     }
   }
 
-  // Server messages sit under their input and are read out with it.
-  const errorProps = (field: string) =>
-    fieldErrors[field]
-      ? { 'aria-invalid': true, 'aria-describedby': `${id}-${field}-error` }
-      : {}
-  const errorText = (field: string) =>
-    fieldErrors[field] && (
-      <p className="field-error" id={`${id}-${field}-error`}>
-        {fieldErrors[field].join(' ')}
-      </p>
-    )
-
   return (
     <form className="task-form" onSubmit={handleSubmit} noValidate>
       <div className="field">
         <label htmlFor={`${id}-title`}>Title</label>
-        <input id={`${id}-title`} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} {...errorProps('title')} />
-        {errorText('title')}
+        <input id={`${id}-title`} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} {...errorAttributes(id, 'title', fieldErrors)} />
+        <FieldError formId={id} field="title" errors={fieldErrors} />
       </div>
 
       <div className="field">
@@ -76,9 +64,9 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
           maxLength={1000}
           rows={3}
           onChange={(e) => setDescription(e.target.value)}
-          {...errorProps('description')}
+          {...errorAttributes(id, 'description', fieldErrors)}
         />
-        {errorText('description')}
+        <FieldError formId={id} field="description" errors={fieldErrors} />
       </div>
 
       <div className="field-row">
@@ -88,13 +76,13 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
             id={`${id}-priority`}
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            {...errorProps('priority')}
+            {...errorAttributes(id, 'priority', fieldErrors)}
           >
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
             <option value="High">High</option>
           </select>
-          {errorText('priority')}
+          <FieldError formId={id} field="priority" errors={fieldErrors} />
         </div>
 
         <div className="field">
@@ -104,17 +92,13 @@ export function TaskForm({ initial, onSubmit, onCancel }: TaskFormProps) {
             type="datetime-local"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            {...errorProps('dueDate')}
+            {...errorAttributes(id, 'dueDate', fieldErrors)}
           />
-          {errorText('dueDate')}
+          <FieldError formId={id} field="dueDate" errors={fieldErrors} />
         </div>
       </div>
 
-      {formError && (
-        <p className="form-error" role="alert">
-          {formError}
-        </p>
-      )}
+      <FormError message={formError} />
 
       <div className="form-actions">
         {onCancel && (
