@@ -57,9 +57,7 @@ public sealed class TaskService
         if (edited.IsFailure)
             return Result<TaskDto>.Failure([.. edited.Errors]);
 
-        if (!await _repository.UpdateAsync(task, cancellationToken))
-            return Result<TaskDto>.Failure(TaskErrors.NotFound);
-        return Result<TaskDto>.Success(ToDto(task, now));
+        return await SaveAsync(task, now, cancellationToken);
     }
 
     public async Task<Result<TaskDto>> ChangeStatusAsync(Guid userId, Guid taskId, TaskItemStatus? status, CancellationToken cancellationToken)
@@ -73,9 +71,7 @@ public sealed class TaskService
         if (changed.IsFailure)
             return Result<TaskDto>.Failure([.. changed.Errors]);
 
-        if (!await _repository.UpdateAsync(task, cancellationToken))
-            return Result<TaskDto>.Failure(TaskErrors.NotFound);
-        return Result<TaskDto>.Success(ToDto(task, now));
+        return await SaveAsync(task, now, cancellationToken);
     }
 
     public async Task<Result> DeleteAsync(Guid userId, Guid taskId, CancellationToken cancellationToken)
@@ -87,6 +83,12 @@ public sealed class TaskService
         task.Delete(Now());
         return await _repository.UpdateAsync(task, cancellationToken) ? Result.Success() : Result.Failure(TaskErrors.NotFound);
     }
+
+    // Nothing saved means the task was deleted after it was read: for the caller it no longer exists.
+    private async Task<Result<TaskDto>> SaveAsync(TaskItem task, DateTimeOffset now, CancellationToken cancellationToken)
+        => await _repository.UpdateAsync(task, cancellationToken)
+            ? Result<TaskDto>.Success(ToDto(task, now))
+            : Result<TaskDto>.Failure(TaskErrors.NotFound);
 
     // Mongo stores milliseconds; trimming up front means a task always reads back exactly as it was returned.
     private DateTimeOffset Now() => ToMilliseconds(_timeProvider.GetUtcNow())!.Value;
