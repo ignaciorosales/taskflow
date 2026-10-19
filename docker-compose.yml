@@ -1,0 +1,50 @@
+# docker compose up --build   →   http://localhost:8080
+services:
+  mongo:
+    image: mongo:8.0
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  identity-api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      args:
+        PROJECT: TaskFlow.Identity.Api
+    environment: &api-environment
+      Mongo__ConnectionString: mongodb://mongo:27017
+      Mongo__Database: taskflow
+      # Local demo key only; set JWT_KEY to override it anywhere real.
+      Jwt__Key: ${JWT_KEY:-local-demo-signing-key-change-me-for-real-use}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  tasks-api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      args:
+        PROJECT: TaskFlow.Tasks.Api
+    environment: *api-environment
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  # The only published port: the APIs are reachable through nginx alone.
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - identity-api
+      - tasks-api
+
+volumes:
+  mongo-data:
