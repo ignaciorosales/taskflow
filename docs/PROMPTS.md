@@ -140,7 +140,7 @@ Then:
 ```
 Update the acceptance criteria with my answers. Don't add any rule I didn't give you.
 ```
-*Notes:*
+*Notes:* The AI asked 20 questions before any design. In round 2 it flagged that two of my answers conflicted: hiding whether an email exists, yet logging the user in right after registering. I chose to reveal "already registered" behind a rate limit and logged it as a trade-off. The follow-up prompt told it not to add rules I hadn't given.
 
 ## 2. Plan
 
@@ -156,7 +156,7 @@ and list the assumptions you're making so I can validate them.
 
 Result: [docs/PLAN.md](PLAN.md).
 </details>
-*Notes:*
+*Notes:* The plan came back with 14 assumptions for me to validate instead of silent choices. Assumption 7 replaced the earlier date-only due date with a UTC date and time, to match the story. Reuse detection for refresh tokens was confirmed here before any code.
 
 ## 3. Scaffold
 
@@ -169,7 +169,7 @@ Central Package Management, warnings as errors, and it must build clean.
 
 1. The xUnit template adds `xunit`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk` and `coverlet.collector`. Approve? → Yes. The `Microsoft.AspNetCore.OpenApi` package added by the webapi template was removed until step 8.
 </details>
-*Notes:*
+*Notes:* The web API template added `Microsoft.AspNetCore.OpenApi`, which nobody had approved. Under the rule in `CLAUDE.md` (ask before any package) it was removed until step 8.
 
 ## 4. Domain: red
 
@@ -177,7 +177,7 @@ Central Package Management, warnings as errors, and it must build clean.
 Red phase. Tests for the TaskItem and User entities from the user story's rules. Cover the boundaries.
 Keep the entities rich: the tests should expect them to enforce their own invariants.
 ```
-*Notes:*
+*Notes:* The green code applied the default priority in two places, once for validation and once for the stored value. The refactor computes it once (`09b4192`).
 
 ## 5. Application: red
 
@@ -185,7 +185,7 @@ Keep the entities rich: the tests should expect them to enforce their own invari
 Red phase. Tests for a TaskService on top of a repository port, covering the task and privacy criteria.
 Someone else's task must be indistinguishable from one that doesn't exist.
 ```
-*Notes:*
+*Notes:* Red and green only (`b052fa3`, `0c2229d`); the history shows no correction at this step. The privacy tests written here are the ones later steps relied on: someone else's task, a deleted one and a missing one must all return the same 404.
 
 ## 6. Infrastructure: red
 
@@ -194,7 +194,7 @@ Red phase. Integration tests for the Mongo repositories against a real Mongo via
 One container shared per test class. Email uniqueness must be enforced by the database,
 and a duplicate comes back as a Result, not an exception.
 ```
-*Notes:*
+*Notes:* Red and green only (`6b60059`, `0d78c06`); the history shows no correction at this step. Email uniqueness was left to a unique index in Mongo, and a test proves that concurrent registrations can't both win.
 
 ## 7. Identity API
 
@@ -207,7 +207,7 @@ Green:
 Hash passwords with ASP.NET's PasswordHasher. The JWT key comes from the environment; fail at startup if it's missing.
 Use the built-in health checks and rate limit the login endpoint.
 ```
-*Notes:*
+*Notes:* The green code parsed the user id from the token inline in the controller. The refactor moved it to one shared helper that both APIs use (`f9a005c`).
 
 ## 8. Tasks API
 
@@ -220,7 +220,7 @@ Green:
 Keep controllers thin and map Result to HTTP in one place. Unexpected errors go through IExceptionHandler.
 Built-in OpenAPI with Scalar as the UI, with Bearer auth.
 ```
-*Notes:*
+*Notes:* JWT setup sat in its own file, apart from the rest of the shared API setup. The refactor folded it in, 13 lines shorter (`4a924e8`). The OpenAPI package removed at step 3 came back here, once it was needed.
 
 ## 9. Seed + Docker
 
@@ -229,7 +229,7 @@ Add an idempotent seeder for the demo account in the user story. Then a docker-c
 runs with one command. The browser sees a single origin: Vite proxy in dev, nginx in compose,
 routing /api/auth and /api/tasks to each API. No CORS.
 ```
-*Notes:*
+*Notes:* The step 1 answers said the seeder would write the overdue demo task straight to the database. The code instead creates every demo task through the normal domain rules, backdated, so no special path skips validation. Tests prove the seeder is idempotent.
 
 ## 10. Frontend
 
@@ -249,7 +249,7 @@ data in the feature's hook, UI-only state (open dialog, drag) in the component t
 Responsive without a UI library: three columns on wide screens, stacked on narrow ones, usable on a phone.
 Loading, empty and error states. No console warnings under StrictMode.
 ```
-*Notes:*
+*Notes:* Form error handling ended up duplicated in the task and login forms; the refactor shared it (`55bad21`). The first UI was a list with inline forms. After reviewing it I asked for the kanban board, the modal and the state and responsive rules, and the board went through its own red, green and refactor (`f921ef3`, `83237a5`, `9b74aa5`). That first UI also shipped the due-date rounding bug that the step 11 review found.
 
 ## 11. Adversarial review (fresh session)
 
@@ -304,4 +304,8 @@ and wait for my review before writing the implementation.
 - [`TaskItem.cs`](../src/TaskFlow.Domain/Tasks/TaskItem.cs): the task rules (title, due date, status).
 - [`TaskServicePrivacyTests.cs`](../tests/TaskFlow.Application.Tests/Tasks/TaskServicePrivacyTests.cs): the ownership tests written before the implementation.
 
-*Notes:*
+*Notes:* How I validated the AI's output across the steps above:
+- **Tests before code:** I reviewed every red phase before any implementation, and no `feat:` commit in the history touches a test file.
+- **Mutation checks:** I broke a rule on purpose to see a test fail. One test proved nothing until it was fixed (step 12), and the login-screen tests caught both mutations they were checked with.
+- **A fresh-session review:** it found one high, three medium and ten low issues (step 11). The high and medium ones were fixed test-first, and so were four of the low ones.
+- **Auth and edge cases:** they came from the user story questions, not from the AI's defaults: lockout per email, one 404 for someone else's task, due dates as UTC instants, deletes winning over stale saves.
