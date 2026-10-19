@@ -29,7 +29,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => {
     refreshing.current ??= (async () => {
       try {
-        const response = await send('/api/auth/refresh', { method: 'POST' })
+        // Tabs share the cookie too: under one lock, a second tab waits and sends the rotated cookie, not the used one.
+        const post = () => send('/api/auth/refresh', { method: 'POST' })
+        const response = await (navigator.locks ? navigator.locks.request('taskflow-refresh', post) : post())
         accessToken.current = response.ok ? ((await response.json()) as { accessToken: string }).accessToken : null
         return accessToken.current
       } catch {

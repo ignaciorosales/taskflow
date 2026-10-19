@@ -3,8 +3,8 @@ import { ApiError } from '../../api/client'
 import { formatDate, STATUS_ACTIONS, STATUS_LABEL } from './labels'
 import type { Task, TaskStatus } from './types'
 
-/** What a dragged card carries; the plain type is the one every browser starts a drag with. */
-export const DRAG_TYPE = 'text/plain'
+/** What a dragged card carries: a type of our own, so text or links dragged in from elsewhere are never read as a task. */
+export const DRAG_TYPE = 'application/x-taskflow-task'
 
 interface TaskCardProps {
   task: Task

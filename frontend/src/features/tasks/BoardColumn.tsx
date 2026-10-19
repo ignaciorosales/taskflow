@@ -17,6 +17,7 @@ interface BoardColumnProps {
 export function BoardColumn({ status, column, emptyText, onDropTask, onLoadMore, children }: BoardColumnProps) {
   const [over, setOver] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const label = STATUS_LABEL[status]
   const remaining = column.totalCount - column.items.length
 
@@ -46,6 +47,12 @@ export function BoardColumn({ status, column, emptyText, onDropTask, onLoadMore,
 
       {column.items.length === 0 ? <p className="column-empty">{emptyText}</p> : <ul className="task-list">{children}</ul>}
 
+      {loadError && (
+        <p className="form-error" role="alert">
+          {loadError}
+        </p>
+      )}
+
       {remaining > 0 && (
         <button
           type="button"
@@ -53,7 +60,14 @@ export function BoardColumn({ status, column, emptyText, onDropTask, onLoadMore,
           disabled={loadingMore}
           onClick={async () => {
             setLoadingMore(true)
-            await onLoadMore().finally(() => setLoadingMore(false))
+            setLoadError(null)
+            try {
+              await onLoadMore()
+            } catch {
+              setLoadError("Couldn't load more tasks. Please try again.")
+            } finally {
+              setLoadingMore(false)
+            }
           }}
         >
           {loadingMore ? 'Loading…' : `Load more (${remaining})`}
