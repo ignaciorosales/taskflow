@@ -36,3 +36,24 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  # The README promises one command; this runs it and logs in as the demo through nginx.
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait
+      - name: Demo login through nginx
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -sf -X POST http://localhost:8080/api/auth/login \
+                 -H 'Content-Type: application/json' \
+                 -d '{"email":"demo@taskflow.dev","password":"Demo123!"}' > /dev/null; then
+              echo "Demo login works"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+      - if: always()
+        run: docker compose down -v
