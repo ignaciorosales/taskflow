@@ -7,6 +7,7 @@ How I worked:
 - **Ambiguities surfaced before code.** The AI reviews the user story and asks questions first; I make the product decisions.
 - **TDD on every layer.** Red → green → refactor, one commit per phase, so the git history shows it.
 - **One step per prompt**, and I review before the AI continues.
+- **A model for each job.** My usual split is Fable for planning (user story review, solution design, adversarial review) and Opus for development (the TDD steps, fixes, docs), switching with `/model`.
 
 How I verify AI output:
 - **I review the tests before any implementation exists.** A test states *what* must happen in a few lines, so that's where my judgment goes: missing cases, tests that prove nothing, misread rules.
@@ -62,6 +63,78 @@ Break the riskiest rule we just implemented, run the tests and show me which tes
 ```
 This is my user story. Before any design, list what it leaves ambiguous
 and the edge cases it doesn't cover, and ask me about them. Don't propose solutions yet.
+```
+<details>
+<summary>The AI's questions (round 1)</summary>
+
+1. Validate email format, or only non-empty? Max length?
+2. Password: anything beyond the 8-character minimum? Are surrounding spaces kept?
+3. Registering a taken email: can it say "already registered", or must it hide that like login does?
+4. After registering: logged in automatically, or sent to login?
+5. Session: how long? Logout? Refresh / remember me?
+6. Failed logins: attempt limit or lockout?
+7. Are title/description trimmed? Is a whitespace-only title empty? Limits counted after trimming?
+8. Due date: date only, or date and time?
+9. "In the past" in whose timezone? Is today allowed?
+10. When is a task overdue? Can a Done task be overdue?
+11. Allowed transitions: skips (To do → Done), going back (In progress → To do)? Where does reopen land?
+12. Is status changed in the edit form, or as its own action?
+13. On edit: can the due date be set to a new past date? Cleared?
+14. List order? Paging or a limit?
+15. Filter by one status or several? Is "overdue" a filter?
+16. Delete: hard or soft? Confirmation?
+17. Concurrent edits: last write wins?
+18. Demo credentials: where are they shown?
+19. The overdue demo task can't be created through the normal rules; seed it relative to setup time?
+20. Re-running setup: reset demo tasks or leave them?
+</details>
+
+<details>
+<summary>Round 2: follow-ups on unclear or conflicting answers</summary>
+
+- **Register vs. login leak:** I first said both must hide whether an email exists, which conflicts with logging in right after registering. The AI explained account enumeration (credential stuffing, targeted phishing) and the options: a generic reply, email verification, or reveal it with a rate limit. Decision: reveal "already registered", log in on success, and rely on a rate limit that also covers register. Logged as a trade-off.
+- **Anti-bot:** the server can't see browser tabs, so attempts are counted per email (registered or not, so the lockout doesn't leak) plus a rate limit per IP.
+- **Finished after the due date:** not a new status; a "Completed late" badge derived from the completion time.
+- **Paused status:** dropped. Three statuses, any move allowed, as in a real board.
+- **Status changes:** action buttons, not a field in the edit form.
+- **Due date on edit:** can't be moved into the past or removed.
+- **Priority:** new field, Low / Medium / High, optional, defaults to Medium. Filter and sort by it.
+- **Overdue demo task:** the seeder writes straight to the database with dates relative to setup time, so it's overdue right after setup.
+- **Re-running setup:** idempotent; it creates the demo account only if it's missing.
+</details>
+
+My answers:
+```
+Account
+- Email must have a valid format; trimmed and compared case-insensitively.
+- Password: at least 8 characters, with at least one letter, one digit and one symbol.
+- Registering a taken email says "email already registered". Accepted trade-off: it reveals the
+  email exists; the rate limit below slows enumeration. Login keeps the single generic error.
+- A successful registration logs the user in.
+- Session: 15-minute access token, 7-day refresh token rotated on every use. When the refresh
+  fails, back to login. A logout button revokes the refresh token.
+- Anti-bot: 3 failed logins for an email lock it for 1 minute, whether it's registered or not.
+  Login and register are also rate limited per IP.
+
+Tasks
+- Title and description are trimmed and limits count after trimming. A whitespace-only title is empty.
+- Priority: Low, Medium or High. Optional, defaults to Medium.
+- Due date is a date and time, in UTC. When set or changed it can't be before now, and once set
+  it can't be removed. Editing other fields of an overdue task keeps its past due date.
+- Statuses: To do, In progress, Done. Any move is allowed; reopening a Done task moves it to
+  In progress. Status changes through action buttons, not the edit form.
+- Completion time is recorded when a task becomes Done and cleared when it leaves Done.
+- Overdue: due date before now and not Done. A task completed after its due date shows "Completed late".
+- List: filter by status (one at a time), priority and overdue; sort by due date, priority or
+  creation date, ascending or descending; simple paging.
+- Delete is soft and the UI asks for confirmation. To the user, a deleted task doesn't exist.
+- Concurrent edits: last write wins.
+
+Demo
+- Demo credentials are shown on the login screen.
+- The seeder writes the demo tasks directly, with dates relative to setup time, so the overdue
+  one is overdue right after setup.
+- Setup is idempotent: it creates the demo account only if it's missing. Data persists in Mongo.
 ```
 Then:
 ```
