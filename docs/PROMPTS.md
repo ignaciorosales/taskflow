@@ -275,6 +275,26 @@ Then a GitHub Actions workflow that builds and tests on every push, with Docker 
 ```
 *Notes:* The docs quote no coverage percentage. Each test project's coverage file includes the other projects it loads, so the files overlap and there's no single honest figure without adding ReportGenerator. CI passed on the first run, including the Testcontainers tests.
 
+## 14. Code review and polish
+
+```
+/code-review
+```
+Then, on the whole app:
+```
+/code-review high src frontend/src
+```
+*Notes:* The first run reviewed only the latest commit, the Notes above, and found seven claims that overstated or misordered the history. One example: a medium finding was called "fixed test-first" when it had only ever been a missing test. I corrected them (`220d608`). The second run reviewed the source and found ten issues; I fixed nine (`14d76b2`, `95cdfc7`, `c608062`), eight of them test-first:
+- Two tabs refreshing at once logged the user out everywhere; refreshes now take turns under a lock shared by every tab.
+- Load more could mix two filters or repeat a card, and a failed one said nothing.
+- A text selection that ended on the backdrop closed the dialog and lost the input.
+- A deleted card could stay on the board if the reload after it failed.
+- A Done task had no button back to To do, though the story asks for every move with buttons.
+- Any change reloaded only the first page of each column, dropping what Load more had loaded.
+- Text dragged in from elsewhere was sent to the API as a task id.
+
+The ninth was a label: "Newest" contradicted the direction toggle, so it's now "Creation date". One new red test passed at first because its assertion could never match; I rewrote it so it failed for the right reason before any fix. The tenth finding I left: Safari may drop the `Secure` cookie on `http://localhost`, and Safari isn't a target for this demo.
+
 ---
 
 ## GenAI exercise
