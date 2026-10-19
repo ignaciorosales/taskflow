@@ -17,7 +17,8 @@ The full acceptance criteria are in [docs/USER_STORY.md](docs/USER_STORY.md). In
 - Register and log in with email and password. Three failed logins lock that email for a minute, and login and register are rate limited per IP.
 - 15-minute access tokens, renewed by a 7-day refresh token that rotates on every use. Logging out revokes it.
 - Tasks have a title, an optional description, a priority (Low, Medium or High), an optional UTC due date and a status (To do, In progress or Done). Overdue and *Completed late* tasks stand out.
-- Tasks are paged and can be filtered by status, priority and overdue, and sorted by due date, priority or creation date. A deleted task is soft-deleted.
+- Tasks show on a kanban board with one column per status. Drag a card to another column, or use its buttons, to move it. New task and Edit open in a dialog.
+- Each column loads 20 tasks at a time, with *Load more*. The board can be filtered by priority and overdue, and sorted by due date, priority or creation date. A deleted task is soft-deleted.
 - You only ever see your own tasks. Someone else's task answers 404, the same as one that doesn't exist.
 
 ## Run it
@@ -63,7 +64,7 @@ cd frontend && npm test     # Vitest + Testing Library
 ```
 
 - **Backend:** xUnit and NSubstitute. Infrastructure and API tests run against a real Mongo started by Testcontainers.
-- **Frontend:** the task form, the tasks hook and the session refresh.
+- **Frontend:** the board (columns, dragging, the dialog, *Load more*), the task form, the tasks hook and the session refresh.
 - **Development process:** test-first throughout, and the git history shows every red, green and refactor commit.
 
 ### Coverage
