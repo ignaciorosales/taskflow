@@ -138,6 +138,33 @@ public class TasksEndpointsTests(TasksApiFactory factory) : IClassFixture<TasksA
     }
 
     [Fact]
+    public async Task Update_without_a_priority_is_a_400_and_keeps_the_task_as_it_was()
+    {
+        var created = await _client.CreatedTaskAsync("Buy milk");
+
+        var response = await _client.PutAsJsonAsync($"/api/tasks/{created.Id}", new { title = "Buy bread" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var stored = await (await _client.GetAsync($"/api/tasks/{created.Id}")).ReadAsync<TaskResponse>();
+        Assert.Equal("Buy milk", stored.Title);
+        Assert.Equal("Medium", stored.Priority);
+    }
+
+    [Fact]
+    public async Task Status_change_without_a_status_is_a_400_and_keeps_the_status()
+    {
+        var created = await _client.CreatedTaskAsync();
+        await _client.PatchAsJsonAsync($"/api/tasks/{created.Id}/status", new { status = "Done" });
+
+        var response = await _client.PatchAsJsonAsync($"/api/tasks/{created.Id}/status", new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var stored = await (await _client.GetAsync($"/api/tasks/{created.Id}")).ReadAsync<TaskResponse>();
+        Assert.Equal("Done", stored.Status);
+        Assert.NotNull(stored.CompletedAt);
+    }
+
+    [Fact]
     public async Task Delete_returns_204_and_the_task_is_gone()
     {
         var created = await _client.CreatedTaskAsync();
