@@ -204,4 +204,79 @@ describe('useTasks', () => {
     expect(api.calls(`DELETE /api/tasks/${task.id}`)).toHaveLength(1)
     await waitFor(() => expect(api.calls('GET /api/tasks')).toHaveLength(9))
   })
+
+  it('drops a Load more that answers after the filters changed', async () => {
+    const todo = Array.from({ length: 25 }, (_, i) => aTask({ title: `T${i + 1}` }))
+    let answer!: () => void
+    const serve = board(todo)
+    const api = fakeApi({
+      'POST /api/auth/refresh': session('token-1'),
+      'GET /api/tasks': (call) =>
+        call.url.searchParams.get('page') === '2' ? new Promise((resolve) => (answer = () => resolve(serve(call) as Response))) : serve(call),
+    })
+    const { result, rerender } = renderTasks({ priority: 'High' })
+    await waitFor(() => expect(result.current.tasks.columns?.Todo.items).toHaveLength(20))
+
+    let more!: Promise<void>
+    act(() => {
+      more = result.current.tasks.loadMore('Todo')
+    })
+    rerender({ query: { priority: 'Low' } })
+    await waitFor(() => expect(api.calls('GET /api/tasks').filter((c) => c.url.searchParams.get('priority') === 'Low')).toHaveLength(3))
+    await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
+    await act(async () => {
+      answer()
+      await more
+    })
+
+    expect(result.current.tasks.columns?.Todo.items).toHaveLength(20)
+  })
+
+  it('never shows a task twice when the next page overlaps what is already loaded', async () => {
+    const todo = Array.from({ length: 21 }, (_, i) => aTask({ title: `T${i + 1}` }))
+    fakeApi({ 'POST /api/auth/refresh': session('token-1'), 'GET /api/tasks': board(todo) })
+    const { result } = renderTasks()
+    await waitFor(() => expect(result.current.tasks.columns?.Todo.items).toHaveLength(20))
+    todo.unshift(aTask({ title: 'Created elsewhere' })) // shifts T20 onto page 2
+
+    await act(() => result.current.tasks.loadMore('Todo'))
+
+    const ids = result.current.tasks.columns!.Todo.items.map((t) => t.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('keeps the pages loaded with Load more when the board reloads', async () => {
+    const todo = Array.from({ length: 25 }, (_, i) => aTask({ title: `T${i + 1}` }))
+    fakeApi({
+      'POST /api/auth/refresh': session('token-1'),
+      'GET /api/tasks': board(todo),
+      'POST /api/tasks': reply(201, aTask()),
+    })
+    const { result } = renderTasks()
+    await waitFor(() => expect(result.current.tasks.columns?.Todo.items).toHaveLength(20))
+    await act(() => result.current.tasks.loadMore('Todo'))
+
+    await act(() => result.current.tasks.create(input))
+
+    await waitFor(() => expect(result.current.tasks.isLoading).toBe(false))
+    expect(result.current.tasks.columns?.Todo.items).toHaveLength(25)
+  })
+
+  it('takes a deleted task off the board even if the reload after it fails', async () => {
+    const task = aTask({ title: 'A' })
+    const serve = board([task])
+    let deleted = false
+    fakeApi({
+      'POST /api/auth/refresh': session('token-1'),
+      'GET /api/tasks': (call) => (deleted ? reply(500, { title: 'Something went wrong. Please try again.' })(call) : serve(call)),
+      [`DELETE /api/tasks/${task.id}`]: (call) => ((deleted = true), reply(204)(call)),
+    })
+    const { result } = renderTasks()
+    await waitFor(() => expect(titles(result.current.tasks.columns?.Todo.items)).toEqual(['A']))
+
+    await act(() => result.current.tasks.remove(task.id))
+
+    await waitFor(() => expect(result.current.tasks.error).toBe('Something went wrong. Please try again.'))
+    expect(result.current.tasks.columns?.Todo).toEqual({ items: [], totalCount: 0 })
+  })
 })

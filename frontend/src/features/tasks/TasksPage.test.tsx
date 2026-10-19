@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { aTask, board, fakeApi, reply, session } from '../../test/fakeApi'
 import { AuthProvider } from '../auth/AuthContext'
 import { TasksPage } from './TasksPage'
@@ -112,5 +112,58 @@ describe('TasksPage', () => {
 
     expect(await screen.findByText('T25')).toBeInTheDocument()
     expect(within(column('To do')).queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
+  })
+
+  it('ignores text dragged in from elsewhere', async () => {
+    renderPage([aTask({ title: 'A' })])
+    await screen.findByText('A')
+    const dataTransfer = fakeDataTransfer()
+    dataTransfer.setData('text/plain', 'some/selected text')
+
+    fireEvent.dragOver(column('Done'), { dataTransfer })
+    fireEvent.drop(column('Done'), { dataTransfer })
+
+    await new Promise((resolve) => setTimeout(resolve, 50)) // room for a stray request to go out and fail
+    const patches = vi.mocked(globalThis.fetch).mock.calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(patches).toHaveLength(0)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('moves a done task back to To do with a button', async () => {
+    const task = aTask({ title: 'A', status: 'Done' })
+    const { api, user } = renderPage([task], { [`PATCH /api/tasks/${task.id}/status`]: reply(200, { ...task, status: 'Todo' }) })
+    await screen.findByText('A')
+
+    await user.click(within(card('A')).getByRole('button', { name: 'Back to To do' }))
+
+    await waitFor(() => expect(api.calls(`PATCH /api/tasks/${task.id}/status`)[0]?.body).toEqual({ status: 'Todo' }))
+  })
+
+  it('says so in the column when Load more fails', async () => {
+    const serve = board(Array.from({ length: 25 }, (_, i) => aTask({ title: `T${i + 1}` })))
+    const { user } = renderPage([], {
+      'GET /api/tasks': (call) => (call.url.searchParams.get('page') === '2' ? reply(500, { title: 'Something went wrong.' })(call) : serve(call)),
+    })
+    await screen.findByText('T20')
+
+    await user.click(within(column('To do')).getByRole('button', { name: /load more/i }))
+
+    expect(await within(column('To do')).findByRole('alert')).toHaveTextContent("Couldn't load more tasks.")
+  })
+
+  it('keeps the dialog open when a text selection ends on the backdrop', async () => {
+    const { user } = renderPage([])
+    await user.click(await screen.findByRole('button', { name: 'New task' }))
+    const dialog = screen.getByRole('dialog', { name: 'New task' })
+
+    fireEvent.mouseDown(within(dialog).getByLabelText('Title'))
+    fireEvent.mouseUp(dialog)
+    fireEvent.click(dialog)
+    expect(screen.getByRole('dialog', { name: 'New task' })).toBeInTheDocument()
+
+    fireEvent.mouseDown(dialog)
+    fireEvent.mouseUp(dialog)
+    fireEvent.click(dialog)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

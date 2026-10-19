@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fakeApi, reply, session } from '../../test/fakeApi'
 import { AuthProvider, useAuth } from './AuthContext'
 
@@ -38,5 +38,20 @@ describe('AuthProvider', () => {
     const { result } = renderAuth()
 
     await waitFor(() => expect(result.current.status).toBe('anonymous'))
+  })
+
+  it('refreshes under a lock shared by every tab, so two tabs never send the same cookie', async () => {
+    const request = vi.fn((_name: string, run: () => Promise<unknown>) => run())
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true })
+    try {
+      fakeApi({ 'POST /api/auth/refresh': session('token-1') })
+
+      const { result } = renderAuth()
+
+      await waitFor(() => expect(result.current.status).toBe('authenticated'))
+      expect(request).toHaveBeenCalledWith('taskflow-refresh', expect.any(Function))
+    } finally {
+      Reflect.deleteProperty(navigator, 'locks')
+    }
   })
 })
