@@ -16,8 +16,8 @@ public sealed class TaskService
 
     public async Task<Result<TaskDto>> CreateAsync(Guid userId, CreateTaskRequest request, CancellationToken cancellationToken)
     {
-        var now = _timeProvider.GetUtcNow();
-        var created = TaskItem.Create(userId, request.Title, request.Description, request.Priority, request.DueDate, now);
+        var now = Now();
+        var created = TaskItem.Create(userId, request.Title, request.Description, request.Priority, ToMilliseconds(request.DueDate), now);
         if (created.IsFailure)
             return Result<TaskDto>.Failure([.. created.Errors]);
 
@@ -31,7 +31,7 @@ public sealed class TaskService
         if (task is null)
             return Result<TaskDto>.Failure(TaskErrors.NotFound);
 
-        return Result<TaskDto>.Success(ToDto(task, _timeProvider.GetUtcNow()));
+        return Result<TaskDto>.Success(ToDto(task, Now()));
     }
 
     public async Task<Result<PagedResult<TaskDto>>> ListAsync(Guid userId, TaskQuery query, CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ public sealed class TaskService
         if (errors.Count > 0)
             return Result<PagedResult<TaskDto>>.Failure([.. errors]);
 
-        var now = _timeProvider.GetUtcNow();
+        var now = Now();
         var page = await _repository.ListAsync(userId, query, now, cancellationToken);
         return Result<PagedResult<TaskDto>>.Success(
             new PagedResult<TaskDto>([.. page.Items.Select(t => ToDto(t, now))], page.Page, page.PageSize, page.TotalCount));
@@ -52,8 +52,8 @@ public sealed class TaskService
         if (task is null)
             return Result<TaskDto>.Failure(TaskErrors.NotFound);
 
-        var now = _timeProvider.GetUtcNow();
-        var edited = task.Edit(request.Title, request.Description, request.Priority, request.DueDate, now);
+        var now = Now();
+        var edited = task.Edit(request.Title, request.Description, request.Priority, ToMilliseconds(request.DueDate), now);
         if (edited.IsFailure)
             return Result<TaskDto>.Failure([.. edited.Errors]);
 
@@ -67,7 +67,7 @@ public sealed class TaskService
         if (task is null)
             return Result<TaskDto>.Failure(TaskErrors.NotFound);
 
-        var now = _timeProvider.GetUtcNow();
+        var now = Now();
         var changed = task.ChangeStatus(status, now);
         if (changed.IsFailure)
             return Result<TaskDto>.Failure([.. changed.Errors]);
@@ -82,10 +82,16 @@ public sealed class TaskService
         if (task is null)
             return Result.Failure(TaskErrors.NotFound);
 
-        task.Delete(_timeProvider.GetUtcNow());
+        task.Delete(Now());
         await _repository.UpdateAsync(task, cancellationToken);
         return Result.Success();
     }
+
+    // Mongo stores milliseconds; trimming up front means a task always reads back exactly as it was returned.
+    private DateTimeOffset Now() => ToMilliseconds(_timeProvider.GetUtcNow())!.Value;
+
+    private static DateTimeOffset? ToMilliseconds(DateTimeOffset? value)
+        => value is { } v ? new DateTimeOffset(v.Ticks - v.Ticks % TimeSpan.TicksPerMillisecond, v.Offset) : null;
 
     // Someone else's task and a deleted one come back exactly like a missing one.
     private async Task<TaskItem?> FindOwnedAsync(Guid userId, Guid taskId, CancellationToken cancellationToken)

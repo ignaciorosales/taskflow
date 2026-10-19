@@ -13,9 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 var jwt = JwtOptions.FromConfiguration(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration, jwt);
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddTaskFlowAuthentication(jwt.SigningKey(), jwt.Issuer, jwt.Audience);
-builder.Services.AddControllers();
-builder.Services.AddProblemDetails();
+builder.Services.AddTaskFlowApi(jwt.SigningKey(), jwt.Issuer, jwt.Audience);
 
 // nginx is the only way in, so the client IP it forwards is the one to rate limit on.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -38,12 +36,8 @@ var app = builder.Build();
 await MongoSetup.ConfigureAsync(app.Services.GetRequiredService<IMongoDatabase>());
 
 app.UseForwardedHeaders();
-app.UseStatusCodePages();
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseTaskFlowApi();
 app.UseRateLimiter();
-
-app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapTaskFlowApi();
 
 app.Run();
