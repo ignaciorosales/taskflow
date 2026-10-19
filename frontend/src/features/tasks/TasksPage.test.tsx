@@ -64,12 +64,13 @@ describe('TasksPage', () => {
     expect(api.calls(`PATCH /api/tasks/${task.id}/status`)).toHaveLength(0)
   })
 
-  it('still moves a task with its status buttons, for keyboard and touch', async () => {
+  it('still moves a task with buttons, through its Move menu, for keyboard and touch', async () => {
     const task = aTask({ title: 'A', status: 'Todo' })
     const { api, user } = renderPage([task], { [`PATCH /api/tasks/${task.id}/status`]: reply(200, { ...task, status: 'InProgress' }) })
     await screen.findByText('A')
 
-    await user.click(within(card('A')).getByRole('button', { name: 'Start' }))
+    await user.click(within(card('A')).getByRole('button', { name: 'Move' }))
+    await user.click(within(card('A')).getByRole('menuitem', { name: 'In progress' }))
 
     await waitFor(() => expect(api.calls(`PATCH /api/tasks/${task.id}/status`)[0]?.body).toEqual({ status: 'InProgress' }))
   })
@@ -129,12 +130,13 @@ describe('TasksPage', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('moves a done task back to To do with a button', async () => {
+  it('moves a done task back to To do through its Move menu', async () => {
     const task = aTask({ title: 'A', status: 'Done' })
     const { api, user } = renderPage([task], { [`PATCH /api/tasks/${task.id}/status`]: reply(200, { ...task, status: 'Todo' }) })
     await screen.findByText('A')
 
-    await user.click(within(card('A')).getByRole('button', { name: 'Back to To do' }))
+    await user.click(within(card('A')).getByRole('button', { name: 'Move' }))
+    await user.click(within(card('A')).getByRole('menuitem', { name: 'To do' }))
 
     await waitFor(() => expect(api.calls(`PATCH /api/tasks/${task.id}/status`)[0]?.body).toEqual({ status: 'Todo' }))
   })
@@ -165,5 +167,33 @@ describe('TasksPage', () => {
     fireEvent.mouseUp(dialog)
     fireEvent.click(dialog)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps cards to three icon buttons, with the other statuses one menu away', async () => {
+    const { user } = renderPage([aTask({ title: 'A', status: 'Todo' })])
+    await screen.findByText('A')
+
+    const buttons = within(card('A')).getAllByRole('button')
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Move', 'Edit', 'Delete'])
+    for (const button of buttons) expect(button).toHaveTextContent('')
+    expect(within(card('A')).queryByRole('menu')).not.toBeInTheDocument()
+
+    await user.click(within(card('A')).getByRole('button', { name: 'Move' }))
+    const menu = within(card('A')).getByRole('menu')
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['In progress', 'Done'])
+
+    await user.keyboard('{Escape}')
+    expect(within(card('A')).queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('deletes a task from its icon after confirming', async () => {
+    const task = aTask({ title: 'A' })
+    const { api, user } = renderPage([task], { [`DELETE /api/tasks/${task.id}`]: reply(204) })
+    await screen.findByText('A')
+
+    await user.click(within(card('A')).getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('group', { name: 'Confirm delete' })).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(api.calls(`DELETE /api/tasks/${task.id}`)).toHaveLength(1))
   })
 })
