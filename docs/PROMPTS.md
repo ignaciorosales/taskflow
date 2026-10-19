@@ -297,4 +297,11 @@ Rules:
 Work test-first: state your assumptions, then give me the service tests for validation and ownership,
 and wait for my review before writing the implementation.
 ```
+
+**Output:** this repository. The prompts above produced it, and the git history shows each step as red, green and refactor commits. A representative sample for this prompt:
+- [`TasksController.cs`](../src/TaskFlow.Tasks.Api/Controllers/TasksController.cs): the CRUD endpoints, with the owner taken from the token.
+- [`TaskService.cs`](../src/TaskFlow.Application/Tasks/TaskService.cs): validation, ownership and soft delete.
+- [`TaskItem.cs`](../src/TaskFlow.Domain/Tasks/TaskItem.cs): the task rules (title, due date, status).
+- [`TaskServicePrivacyTests.cs`](../tests/TaskFlow.Application.Tests/Tasks/TaskServicePrivacyTests.cs): the ownership tests written before the implementation.
+
 *Notes:*
